@@ -38,5 +38,6 @@ build/
 ### Mac OS ###
 .DS_Store
 
-.env
-config/keycloak/import/selmag.json
+#In a real project, uncomment them, as these files should not be included in Git
+#.env
+#config/keycloak/import/selmag.json
