@@ -5,37 +5,38 @@ spring:
         enabled: false
   data:
     mongodb:
-      uri: mongodb://172.17.0.1:27017/feedback
+      uri: mongodb://feedback-db:27017/feedback
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://172.17.0.1:8082/realms/selmag
+          issuer-uri: http://keycloak:8080/realms/selmag
       client:
         registration:
           keycloak:
-            client-id: feedback-service
-            client-secret: 4cD79sTpV318BqiIWWUYsfjywdzg4DeK
+            client-id: ${FEEDBACK_SERVICE_CLIENT_ID}
+            client-secret: ${FEEDBACK_SERVICE_CLIENT_SECRET}
             authorization-grant-type: client_credentials
             scope:
               - metrics_server
           discovery:
             provider: keycloak
-            client-id: feedback-service
-            client-secret: 4cD79sTpV318BqiIWWUYsfjywdzg4DeK
+            client-id: ${FEEDBACK_SERVICE_CLIENT_ID}
+            client-secret: ${FEEDBACK_SERVICE_CLIENT_SECRET}
             authorization-grant-type: client_credentials
             scope:
               - discovery
         provider:
           keycloak:
-            issuer-uri: http://172.17.0.1:8082/realms/selmag
+            issuer-uri: http://keycloak:8080/realms/selmag
 springdoc:
   swagger-ui:
     oauth:
       client-id: feedback-service-swagger-ui
       use-pkce-with-authorization-code-grant: true
 keycloak:
-  uri: http://172.17.0.1:8082
+  uri: http://keycloak:8080
+
 management:
   health:
     livenessstate:
@@ -45,19 +46,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: '*'
-  zipkin:
-    tracing:
-      endpoint: http://172.17.0.1:9411/api/v2/spans
+        include:
+          - health
+          - info
   tracing:
-    sampling:
-      probability: 1.0
+    enabled: false
+
 eureka:
-  client:
-    registryFetchIntervalSeconds: 1
-    service-url:
-      defaultZone: http://172.17.0.1:8761/eureka/
   instance:
-    leaseRenewalIntervalInSeconds: 1
-    leaseExpirationDurationInSeconds: 1
     prefer-ip-address: true
+    leaseRenewalIntervalInSeconds: 20
+    leaseExpirationDurationInSeconds: 60
+  client:
+    registryFetchIntervalSeconds: 20
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/

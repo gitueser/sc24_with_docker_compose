@@ -1,5 +1,3 @@
-server:
-  port: 8761
 spring:
   application:
     name: selmag-eureka-server
@@ -7,4 +5,4 @@ spring:
     import: 'optional:configserver:'
   cloud:
     config:
-      uri: http://config:config-password@172.17.0.1:8888
+      uri: http://config:config-password@config-server:8888

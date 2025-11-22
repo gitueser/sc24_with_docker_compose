@@ -1,5 +1,4 @@
 server:
-  port: 8086
   forward-headers-strategy: framework
 spring:
   application:
@@ -8,4 +7,4 @@ spring:
     import: 'optional:configserver:'
   cloud:
     config:
-      uri: http://config:config-password@172.17.0.1:8888
+      uri: http://config:config-password@config-server:8888

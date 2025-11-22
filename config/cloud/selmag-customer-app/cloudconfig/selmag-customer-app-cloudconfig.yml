@@ -14,12 +14,12 @@ spring:
       client:
         provider:
           keycloak:
-            issuer-uri: http://172.17.0.1:8082/realms/selmag
+            issuer-uri: http://keycloak:8080/realms/selmag
             user-name-attribute: preferred_username
         registration:
           keycloak:
-            client-id: customer-app
-            client-secret: M1bhGCByxWDqVWeokJj6Z9sMGTI41lNc
+            client-id: ${CUSTOMER_APP_CLIENT_ID}
+            client-secret: ${CUSTOMER_APP_CLIENT_SECRET}
             client-name: Selmag Keycloak
             authorization-grant-type: authorization_code
             scope:
@@ -27,21 +27,21 @@ spring:
               - view_catalogue
           metrics:
             provider: keycloak
-            client-id: customer-app
-            client-secret: M1bhGCByxWDqVWeokJj6Z9sMGTI41lNc
+            client-id: ${CUSTOMER_APP_CLIENT_ID}
+            client-secret: ${CUSTOMER_APP_CLIENT_SECRET}
             authorization-grant-type: client_credentials
             scope:
               - metrics_server
           discovery:
             provider: keycloak
-            client-id: customer-app
-            client-secret: M1bhGCByxWDqVWeokJj6Z9sMGTI41lNc
+            client-id: ${CUSTOMER_APP_CLIENT_ID}
+            client-secret: ${CUSTOMER_APP_CLIENT_SECRET}
             authorization-grant-type: client_credentials
             scope:
               - discovery
       resourceserver:
         jwt:
-          issuer-uri: http://172.17.0.1:8082/realms/selmag
+          issuer-uri: http://keycloak:8080/realms/selmag
 management:
   health:
     livenessstate:
@@ -51,19 +51,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: '*'
-  zipkin:
-    tracing:
-      endpoint: http://172.17.0.1:9411/api/v2/spans
+        include:
+          - health
+          - info
   tracing:
-    sampling:
-      probability: 1.0
+    enabled: false
+
 eureka:
   instance:
-    leaseRenewalIntervalInSeconds: 1
-    leaseExpirationDurationInSeconds: 1
     prefer-ip-address: true
+    leaseRenewalIntervalInSeconds: 20
+    leaseExpirationDurationInSeconds: 60
   client:
-    registryFetchIntervalSeconds: 1
+    registryFetchIntervalSeconds: 20
     service-url:
-      defaultZone: http://172.17.0.1:8761/eureka/
+      defaultZone: http://eureka-server:8761/eureka/

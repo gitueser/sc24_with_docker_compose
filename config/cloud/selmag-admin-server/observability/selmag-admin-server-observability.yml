@@ -1,0 +1,12 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - prometheus
+  tracing:
+    enabled: true
+    sampling:
+      probability: 0.1

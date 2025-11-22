@@ -4,11 +4,11 @@ spring:
       client:
         registration:
           keycloak:
-            client-id: customer-app-nip.io
-            client-secret: eFOojEoaj5TDdc8ln2rRlFPvvfgY5erK
+            client-id: ${CUSTOMER_APP_GATEWAY_CLIENT_ID}
+            client-secret: ${CUSTOMER_APP_GATEWAY_CLIENT_SECRET}
           metrics:
-            client-id: customer-app-nip.io
-            client-secret: eFOojEoaj5TDdc8ln2rRlFPvvfgY5erK
+            client-id: ${CUSTOMER_APP_GATEWAY_CLIENT_ID}
+            client-secret: ${CUSTOMER_APP_GATEWAY_CLIENT_SECRET}
           discovery:
-            client-id: customer-app-nip.io
-            client-secret: eFOojEoaj5TDdc8ln2rRlFPvvfgY5erK
+            client-id: ${CUSTOMER_APP_GATEWAY_CLIENT_ID}
+            client-secret: ${CUSTOMER_APP_GATEWAY_CLIENT_SECRET}

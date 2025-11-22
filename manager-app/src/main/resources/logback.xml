@@ -12,10 +12,10 @@
                 </http>
                 <format>
                     <label>
-                        <pattern>app=selmag-manager-app,host=${HOSTNAME},level=%level</pattern>
+                        <pattern>app=selmag-manager-app,host=${MY_SELMAG_APP_HOSTNAME},level=%level</pattern>
                     </label>
                     <message>
-                        <pattern>l=%level h=${HOSTNAME} c=%logger{20} t=%thread | %msg %ex</pattern>
+                        <pattern>l=%level h=${MY_SELMAG_APP_HOSTNAME} c=%logger{20} t=%thread | %msg %ex</pattern>
                     </message>
                     <sortByTime>true</sortByTime>
                 </format>

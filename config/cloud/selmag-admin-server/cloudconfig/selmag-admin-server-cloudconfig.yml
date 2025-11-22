@@ -3,30 +3,30 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://172.17.0.1:8082/realms/selmag
+          issuer-uri: http://keycloak:8080/realms/selmag
       client:
         provider:
           keycloak:
-            issuer-uri: http://172.17.0.1:8082/realms/selmag
+            issuer-uri: http://keycloak:8080/realms/selmag
             user-name-attribute: preferred_username
         registration:
           keycloak:
             authorization-grant-type: client_credentials
             scope:
               - metrics
-            client-id: admin-service
-            client-secret: 4mR9OIt3qadt22Dbbr5KC01lsRQ0qVcg
+            client-id: ${ADMIN_SERVICE_CLIENT_ID}
+            client-secret: ${ADMIN_SERVICE_CLIENT_SECRET}
           login:
             provider: keycloak
             scope:
               - metrics
               - openid
-            client-id: admin-service
-            client-secret: 4mR9OIt3qadt22Dbbr5KC01lsRQ0qVcg
+            client-id: ${ADMIN_SERVICE_CLIENT_ID}
+            client-secret: ${ADMIN_SERVICE_CLIENT_SECRET}
           discovery:
             provider: keycloak
-            client-id: admin-service
-            client-secret: 4mR9OIt3qadt22Dbbr5KC01lsRQ0qVcg
+            client-id: ${ADMIN_SERVICE_CLIENT_ID}
+            client-secret: ${ADMIN_SERVICE_CLIENT_SECRET}
             authorization-grant-type: client_credentials
             scope:
               - discovery
@@ -36,14 +36,17 @@ management:
       exposure:
         include:
           - health
-          - prometheus
+          - info
+  tracing:
+    enabled: false
+
 eureka:
   instance:
-    hostname: 172.17.0.1
-    leaseRenewalIntervalInSeconds: 1
-    leaseExpirationDurationInSeconds: 1
+    hostname: admin-server
+    leaseRenewalIntervalInSeconds: 20
+    leaseExpirationDurationInSeconds: 60
   client:
     service-url:
-      defaultZone: http://172.17.0.1:8761/eureka/
-    registryFetchIntervalSeconds: 1
+      defaultZone: http://eureka-server:8761/eureka/
+    registryFetchIntervalSeconds: 20
     register-with-eureka: false

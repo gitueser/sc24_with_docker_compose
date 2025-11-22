@@ -1,0 +1,80 @@
+name: selmag
+
+x-logging: &default-logging
+  driver: "local"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  tempo:
+    image: grafana/tempo:2.3.1
+    command: -config.file=/etc/tempo.yaml
+    volumes:
+      - './config/tempo/tempo.yaml:/etc/tempo.yaml'
+      - 'tempo_data:/tmp/tempo'
+    ports:
+      - '3200:3200'
+      - '9095:9095'
+      - '4317:4317'
+      - '4318:4318'
+      - '9411:9411'
+      - '14268:14268'
+    logging: *default-logging
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:2.9.4
+    ports:
+      - '3100:3100'
+    volumes:
+      - 'loki_data:/loki'
+    logging: *default-logging
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.2.4
+    ports:
+      - '3000:3000'
+    volumes:
+      - type: volume
+        source: grafana_data
+        target: /var/lib/grafana
+    user: '1000'
+    logging: *default-logging
+    restart: unless-stopped
+
+  victoria-metrics:
+    image: victoriametrics/victoria-metrics:v1.93.12
+    command: -promscrape.config=/promscrape.yaml
+    environment:
+      VICTORIA_METRICS_CLIENT_ID: ${VICTORIA_METRICS_CLIENT_ID}
+      VICTORIA_METRICS_CLIENT_SECRET: ${VICTORIA_METRICS_CLIENT_SECRET}
+      KEYCLOAK_METRICS_TOKEN_URL: ${KEYCLOAK_METRICS_TOKEN_URL}
+
+      ADMIN_SERVER_PORT_INTERNAL: ${ADMIN_SERVER_PORT_INTERNAL}
+      API_GATEWAY_PORT_INTERNAL: ${API_GATEWAY_PORT_INTERNAL}
+      CONFIG_SERVER_PORT_INTERNAL: ${CONFIG_SERVER_PORT_INTERNAL}
+      EUREKA_SERVER_PORT_INTERNAL: ${EUREKA_SERVER_PORT_INTERNAL}
+      CATALOGUE_SERVICE_PORT_INTERNAL: ${CATALOGUE_SERVICE_PORT_INTERNAL}
+      FEEDBACK_SERVICE_PORT_INTERNAL: ${FEEDBACK_SERVICE_PORT_INTERNAL}
+      CUSTOMER_APP_PORT_INTERNAL: ${CUSTOMER_APP_PORT_INTERNAL}
+      MANAGER_APP_PORT_INTERNAL: ${MANAGER_APP_PORT_INTERNAL}
+    volumes:
+      - type: bind
+        source: ./config/victoria-metrics/promscrape_docker_compose.yaml
+        target: /promscrape.yaml
+        read_only: true
+      - type: volume
+        source: vm_data
+        target: /victoria-metrics-data
+    ports:
+      - "8428:8428"
+    logging: *default-logging
+    restart: unless-stopped
+
+volumes:
+  vm_data:
+  tempo_data:
+  loki_data:
+  grafana_data:

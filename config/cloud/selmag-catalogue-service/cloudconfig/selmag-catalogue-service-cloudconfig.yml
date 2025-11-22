@@ -17,25 +17,25 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://172.17.0.1:8082/realms/selmag
+          issuer-uri: http://keycloak:8080/realms/selmag
       client:
         registration:
           keycloak:
-            client-id: catalogue-service
-            client-secret: LWRWGTNOni7xr9oIh52Wt6bS9jRcQy6Q
+            client-id: ${CATALOGUE_SERVICE_CLIENT_ID}
+            client-secret: ${CATALOGUE_SERVICE_CLIENT_SECRET}
             authorization-grant-type: client_credentials
             scope:
               - metrics_server
           discovery:
             provider: keycloak
-            client-id: catalogue-service
-            client-secret: LWRWGTNOni7xr9oIh52Wt6bS9jRcQy6Q
+            client-id: ${CATALOGUE_SERVICE_CLIENT_ID}
+            client-secret: ${CATALOGUE_SERVICE_CLIENT_SECRET}
             authorization-grant-type: client_credentials
             scope:
               - discovery
         provider:
           keycloak:
-            issuer-uri: http://172.17.0.1:8082/realms/selmag
+            issuer-uri: http://keycloak:8080/realms/selmag
 logging:
   level:
     sql: info
@@ -45,7 +45,7 @@ springdoc:
       client-id: catalogue-service-swagger-ui
       use-pkce-with-authorization-code-grant: true
 keycloak:
-  uri: http://172.17.0.1:8082
+  uri: http://keycloak:8080
 management:
   health:
     livenessstate:
@@ -55,19 +55,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: '*'
-  zipkin:
-    tracing:
-      endpoint: http://172.17.0.1:9411/api/v2/spans
+        include:
+          - health
+          - info
   tracing:
-    sampling:
-      probability: 1.0
+    enabled: false
+
 eureka:
   instance:
     prefer-ip-address: true
-    leaseRenewalIntervalInSeconds: 1
-    leaseExpirationDurationInSeconds: 1
+    leaseRenewalIntervalInSeconds: 20
+    leaseExpirationDurationInSeconds: 60
   client:
-    registryFetchIntervalSeconds: 1
+    registryFetchIntervalSeconds: 20
     service-url:
-      defaultZone: http://172.17.0.1:8761/eureka/
+      defaultZone: http://eureka-server:8761/eureka/

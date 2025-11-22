@@ -1,14 +1,15 @@
 eureka:
   instance:
-    hostname: 172.17.0.1
-    leaseRenewalIntervalInSeconds: 1
-    leaseExpirationDurationInSeconds: 1
+    hostname: eureka-server
+    leaseRenewalIntervalInSeconds: 20
+    leaseExpirationDurationInSeconds: 60
   client:
-    registryFetchIntervalSeconds: 1
+    registryFetchIntervalSeconds: 20
     register-with-eureka: false
     fetch-registry: false
     service-url:
       defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
+
 spring:
   security:
     oauth2:
@@ -16,13 +17,28 @@ spring:
         provider:
           keycloak:
             user-name-attribute: preferred_username
-            issuer-uri: http://172.17.0.1:8082/realms/selmag
+            issuer-uri: http://keycloak:8080/realms/selmag
         registration:
           keycloak:
-            client-id: eureka-server
-            client-secret: CmiOMjFHzWqXMbde2p2r3Aco6DfE83Oj
+            client-id: ${EUREKA_SERVER_CLIENT_ID}
+            client-secret: ${EUREKA_SERVER_CLIENT_SECRET}
             scope:
               - openid
       resourceserver:
         jwt:
-          issuer-uri: http://172.17.0.1:8082/realms/selmag
+          issuer-uri: http://keycloak:8080/realms/selmag
+
+management:
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+  tracing:
+    enabled: false

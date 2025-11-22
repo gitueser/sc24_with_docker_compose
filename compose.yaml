@@ -1,155 +1,325 @@
 name: selmag
+
+x-logging: &default-logging
+  driver: "local"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
-  # Инфраструктура
   keycloak:
     image: quay.io/keycloak/keycloak:23.0.7
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME_URL: "http://keycloak:${KEYCLOAK_PORT_EXTERNAL}"
+      KC_HOSTNAME_STRICT: "false"
     volumes:
+      - 'keycloak_data:/opt/keycloak/data'
       - './config/keycloak/import:/opt/keycloak/data/import'
     ports:
-      - '8082:8080'
+      - "${KEYCLOAK_PORT_EXTERNAL}:${KEYCLOAK_PORT_INTERNAL}"
     command: start-dev --import-realm
-  tempo:
-    image: grafana/tempo:2.3.1
-    command: -config.file=/etc/tempo.yaml
-    volumes:
-      - './config/tempo/tempo.yaml:/etc/tempo.yaml'
-    ports:
-      - '3200:3200'
-      - '9095:9095'
-      - '4317:4317'
-      - '4318:4318'
-      - '9411:9411'
-      - '14268:14268'
-  loki:
-    image: grafana/loki:2.9.4
-    ports:
-      - '3100:3100'
-  grafana:
-    image: grafana/grafana:10.2.4
-    ports:
-      - '3000:3000'
-    volumes:
-      - './data/grafana:/var/lib/grafana'
-    user: '1000'
-  victoria-metrics:
-    image: victoriametrics/victoria-metrics:v1.93.12
-    command: -promscrape.config=/promscrape.yaml
-    volumes:
-      - './config/victoria-metrics/promscrape_docker_compose.yaml:/promscrape.yaml'
-    ports:
-      - '8428:8428'
+    healthcheck:
+#      test: [ "CMD-SHELL", "bash -lc '</dev/tcp/127.0.0.1/${KEYCLOAK_PORT_INTERNAL}' >/dev/null 2>&1 || exit 1" ]
+      test: [
+        "CMD-SHELL",
+        "bash -lc 'exec 3<>/dev/tcp/127.0.0.1/${KEYCLOAK_PORT_INTERNAL} || exit 1; \
+          printf \"GET /realms/selmag/.well-known/openid-configuration HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n\" >&3; \
+          head -n 1 <&3 >/dev/null 2>&1 || exit 1'"
+      ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    logging: *default-logging
+    restart: unless-stopped
+
   catalogue-db:
     image: postgres:16
     ports:
-      - '5432:5432'
+      - "${CATALOGUE_DB_PORT_EXTERNAL}:${CATALOGUE_DB_PORT_INTERNAL}"
     environment:
-      POSTGRES_USER: catalogue
-      POSTGRES_PASSWORD: catalogue
-      POSTGRES_DB: catalogue
+      POSTGRES_USER: ${CATALOGUE_DB_USER}
+      POSTGRES_PASSWORD: ${CATALOGUE_DB_PASSWORD}
+      POSTGRES_DB: ${CATALOGUE_DB_NAME}
+    volumes:
+      - 'catalogue_pg_data:/var/lib/postgresql/data'
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U catalogue -d catalogue || exit 1" ]
+      interval: 15s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    logging: *default-logging
+    restart: unless-stopped
+
   feedback-db:
     image: mongo:7
+    command: ["--bind_ip_all", "--quiet"]
     ports:
-      - '27017:27017'
-  # Сервисы
+      - "${FEEDBACK_DB_PORT_EXTERNAL}:${FEEDBACK_DB_PORT_INTERNAL}"
+    volumes:
+      - 'feedback_mongo_data:/data/db'
+    healthcheck:
+      test: [ "CMD-SHELL", "bash -lc '</dev/tcp/127.0.0.1/${FEEDBACK_DB_PORT_INTERNAL}' >/dev/null 2>&1 || exit 1" ]
+      interval: 20s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    logging: *default-logging
+    restart: unless-stopped
+
   config-server:
-    restart: always
     build:
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/Dockerfile
       args:
         JAR_FILE: config-server/target/config-server-24.1.1-SNAPSHOT-exec.jar
       tags:
         - localhost:5000/selmag/config-server:24.1.1
     environment:
+      SERVER_PORT: ${CONFIG_SERVER_PORT_INTERNAL}
       SPRING_PROFILES_ACTIVE: native
       SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS: file:///config/{application}/{profile}
-      LOKI: http://loki:3100
+    #      LOKI: http://loki:3100
     volumes:
       - './config/cloud:/config'
     ports:
-      - '8888:8888'
-  eureka-server:
+      - "${CONFIG_SERVER_PORT_EXTERNAL}:${CONFIG_SERVER_PORT_INTERNAL}"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -u config:config-password http://127.0.0.1:${CONFIG_SERVER_PORT_INTERNAL}/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    logging: *default-logging
+#    restart: unless-stopped
     restart: always
+
+  eureka-server:
     build:
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/Dockerfile
       args:
         JAR_FILE: eureka-server/target/eureka-server-24.1.1-SNAPSHOT-exec.jar
       tags:
         - localhost:5000/selmag/eureka-server:24.1.1
     environment:
+      SERVER_PORT: ${EUREKA_SERVER_PORT_INTERNAL}
       SPRING_PROFILES_ACTIVE: cloudconfig
-      LOKI: http://loki:3100
+      EUREKA_SERVER_CLIENT_ID: ${EUREKA_SERVER_CLIENT_ID}
+      EUREKA_SERVER_CLIENT_SECRET: ${EUREKA_SERVER_CLIENT_SECRET}
+    #      LOKI: http://loki:3100
     ports:
-      - '8761:8761'
-  admin-server:
+      - "${EUREKA_SERVER_PORT_EXTERNAL}:${EUREKA_SERVER_PORT_INTERNAL}"
+    depends_on:
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${EUREKA_SERVER_PORT_INTERNAL}/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    logging: *default-logging
+#    restart: on-failure:5
     restart: always
+
+  admin-server:
     build:
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/Dockerfile
       args:
         JAR_FILE: admin-server/target/admin-server-24.1.1-SNAPSHOT-exec.jar
       tags:
         - localhost:5000/selmag/admin-server:24.1.1
     environment:
-      SPRING_PROFILES_ACTIVE: cloudconfig
-      LOKI: http://loki:3100
+      SERVER_PORT: ${ADMIN_SERVER_PORT_INTERNAL}
+      SPRING_PROFILES_ACTIVE: cloudconfig,observability
+      JAVA_OPTS: -DMY_SELMAG_APP_HOSTNAME=${MY_SELMAG_APP_HOSTNAME}
+      ADMIN_SERVICE_CLIENT_ID: ${ADMIN_SERVICE_CLIENT_ID}
+      ADMIN_SERVICE_CLIENT_SECRET: ${ADMIN_SERVICE_CLIENT_SECRET}
+    #      LOKI: http://loki:3100
     ports:
-      - '8085:8085'
-  catalogue-service:
+      - "${ADMIN_SERVER_PORT_EXTERNAL}:${ADMIN_SERVER_PORT_INTERNAL}"
+    depends_on:
+      - keycloak
+      - config-server
+      - eureka-server
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${ADMIN_SERVER_PORT_INTERNAL}/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    logging: *default-logging
+#    restart: on-failure:5
     restart: always
+
+  catalogue-service:
+    scale: 3
     build:
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/Dockerfile
       args:
         JAR_FILE: catalogue-service/target/catalogue-service-24.1.1-SNAPSHOT-exec.jar
       tags:
         - localhost:5000/selmag/catalogue-service:24.1.1
     environment:
-      SPRING_PROFILES_ACTIVE: cloudconfig, gateway
-      LOKI: http://loki:3100
-  feedback-service:
+      SERVER_PORT: ${CATALOGUE_SERVICE_PORT_INTERNAL}
+      SPRING_PROFILES_ACTIVE: cloudconfig,observability
+#      SPRING_PROFILES_ACTIVE: cloudconfig,gateway,observability
+      CATALOGUE_SERVICE_CLIENT_ID: ${CATALOGUE_SERVICE_CLIENT_ID}
+      CATALOGUE_SERVICE_CLIENT_SECRET: ${CATALOGUE_SERVICE_CLIENT_SECRET}
+      JAVA_OPTS: -DMY_SELMAG_APP_HOSTNAME=${MY_SELMAG_APP_HOSTNAME}
+    #      LOKI: http://loki:3100
+    depends_on:
+      - keycloak
+      - config-server
+      - eureka-server
+      - catalogue-db
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${CATALOGUE_SERVICE_PORT_INTERNAL}/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    logging: *default-logging
+#    restart: on-failure:5
     restart: always
+
+  feedback-service:
     build:
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/Dockerfile
       args:
         JAR_FILE: feedback-service/target/feedback-service-24.1.1-SNAPSHOT-exec.jar
       tags:
         - localhost:5000/selmag/feedback-service:24.1.1
     environment:
-      SPRING_PROFILES_ACTIVE: cloudconfig, gateway
-      LOKI: http://loki:3100
-  customer-app:
+      SERVER_PORT: ${FEEDBACK_SERVICE_PORT_INTERNAL}
+      SPRING_PROFILES_ACTIVE: cloudconfig,observability
+#      SPRING_PROFILES_ACTIVE: cloudconfig,gateway,observability
+      FEEDBACK_SERVICE_CLIENT_ID: ${FEEDBACK_SERVICE_CLIENT_ID}
+      FEEDBACK_SERVICE_CLIENT_SECRET: ${FEEDBACK_SERVICE_CLIENT_SECRET}
+      JAVA_OPTS: -DMY_SELMAG_APP_HOSTNAME=${MY_SELMAG_APP_HOSTNAME}
+    #      LOKI: http://loki:3100
+    depends_on:
+      - keycloak
+      - config-server
+      - eureka-server
+      - feedback-db
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${FEEDBACK_SERVICE_PORT_INTERNAL}/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    logging: *default-logging
+#    restart: on-failure:5
     restart: always
+
+  customer-app:
     build:
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/Dockerfile
       args:
         JAR_FILE: customer-app/target/customer-app-24.1.1-SNAPSHOT-exec.jar
       tags:
         - localhost:5000/selmag/customer-app:24.1.1
     environment:
-      SPRING_PROFILES_ACTIVE: cloudconfig, gateway
-      LOKI: http://loki:3100
-  manager-app:
+      SERVER_PORT: ${CUSTOMER_APP_PORT_INTERNAL}
+      SPRING_PROFILES_ACTIVE: cloudconfig,observability
+#      SPRING_PROFILES_ACTIVE: cloudconfig,gateway,observability
+      CUSTOMER_APP_CLIENT_ID: ${CUSTOMER_APP_CLIENT_ID}
+      CUSTOMER_APP_CLIENT_SECRET: ${CUSTOMER_APP_CLIENT_SECRET}
+      CUSTOMER_APP_GATEWAY_CLIENT_ID: ${CUSTOMER_APP_GATEWAY_CLIENT_ID}
+      CUSTOMER_APP_GATEWAY_CLIENT_SECRET: ${CUSTOMER_APP_GATEWAY_CLIENT_SECRET}
+      JAVA_OPTS: -DMY_SELMAG_APP_HOSTNAME=${MY_SELMAG_APP_HOSTNAME}
+    #      LOKI: http://loki:3100
+    depends_on:
+      - keycloak
+      - config-server
+      - eureka-server
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${CUSTOMER_APP_PORT_INTERNAL}/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    logging: *default-logging
+#    restart: on-failure:5
     restart: always
+
+  manager-app:
     build:
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/Dockerfile
       args:
         JAR_FILE: manager-app/target/manager-app-24.1.1-SNAPSHOT-exec.jar
       tags:
         - localhost:5000/selmag/manager-app:24.1.1
     environment:
-      SPRING_PROFILES_ACTIVE: cloudconfig, gateway
-      LOKI: http://loki:3100
-  api-gateway:
+      SERVER_PORT: ${MANAGER_APP_PORT_INTERNAL}
+#      SPRING_PROFILES_ACTIVE: cloudconfig,gateway,observability
+      SPRING_PROFILES_ACTIVE: cloudconfig,observability
+      MANAGER_APP_CLIENT_ID: ${MANAGER_APP_CLIENT_ID}
+      MANAGER_APP_CLIENT_SECRET: ${MANAGER_APP_CLIENT_SECRET}
+      MANAGER_APP_GATEWAY_CLIENT_ID: ${MANAGER_APP_GATEWAY_CLIENT_ID}
+      MANAGER_APP_GATEWAY_CLIENT_SECRET: ${MANAGER_APP_GATEWAY_CLIENT_SECRET}
+      JAVA_OPTS: -DMY_SELMAG_APP_HOSTNAME=${MY_SELMAG_APP_HOSTNAME}
+    #      LOKI: http://loki:3100
+    depends_on:
+      - keycloak
+      - config-server
+      - eureka-server
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${MANAGER_APP_PORT_INTERNAL}/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    logging: *default-logging
+#    restart: on-failure:5
     restart: always
+
+  api-gateway:
     build:
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/Dockerfile
       args:
         JAR_FILE: api-gateway/target/api-gateway-24.1.1-SNAPSHOT-exec.jar
       tags:
         - localhost:5000/selmag/api-gateway:24.1.1
     environment:
-      SPRING_PROFILES_ACTIVE: cloudconfig
-      LOKI: http://loki:3100
+      SERVER_PORT: ${API_GATEWAY_PORT_INTERNAL}
+#      SPRING_PROFILES_ACTIVE: cloudconfig,observability
+      SPRING_PROFILES_ACTIVE: cloudconfig,observability
+      JAVA_OPTS: -DMY_SELMAG_APP_HOSTNAME=${MY_SELMAG_APP_HOSTNAME}
+      API_GATEWAY_CLIENT_ID: ${API_GATEWAY_CLIENT_ID}
+      API_GATEWAY_CLIENT_SECRET: ${API_GATEWAY_CLIENT_SECRET}
+    #      LOKI: http://loki:3100
     ports:
-      - '8086:8086'
+      - "${API_GATEWAY_PORT_EXTERNAL}:${API_GATEWAY_PORT_INTERNAL}"
+    depends_on:
+      - keycloak
+      - config-server
+      - eureka-server
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${API_GATEWAY_PORT_INTERNAL}/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    logging: *default-logging
+#    restart: on-failure:5
+    restart: always
+
+volumes:
+  keycloak_data:
+  catalogue_pg_data:
+  feedback_mongo_data:
