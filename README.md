@@ -84,7 +84,7 @@ docker run --name selmag-tracing -p 3200:3200 -p 9095:9095 -p 4317:4317 -p 4318:
 ## FAQ
 
 ### Зачем ip-адрес 172.17.0.1?
-(этот проект уже переделан под запуск из-под WSL 2 Ubuntu, если установлен Docker Desktop на хосте с Windows. Этот ip-адрес 172.17.0.1 больше нигде не используется. Для поднятия всех бизнес-сервисов используй команду:  
+(этот проект уже переделан под запуск из-под WSL 2 Ubuntu, если установлен Docker Desktop на хосте с Windows. Этот ip-адрес 172.17.0.1 больше нигде не используется. Для поднятия всех бизнес-сервисов используй команду (в Docker Desktop нужно выставить использование WSL 2):  
 ```
 mvn clean install
 ```
@@ -93,8 +93,12 @@ mvn clean install
 ```
 docker compose -f compose.yaml -f up -d
 ```
+или эту:
+```
+docker compose up -d
+```
 
-Если еще хочешь поднять еще и observability-сервисы, то используй команду:
+Если еще хочешь поднять еще и observability-сервисы, то используй эту команду:
 ```
 docker compose -f compose.yaml -f compose.observability.yaml up -d
 ```
