@@ -1,3 +1,5 @@
+truncate table catalogue.t_product restart identity cascade;
+
 insert into catalogue.t_product (id, c_title, c_details)
 values (1, 'Товар №1', 'Описание товара №1'),
        (2, 'Шоколадка', 'Очень вкусная шоколадка'),

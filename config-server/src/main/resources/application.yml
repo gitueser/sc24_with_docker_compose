@@ -1,7 +1,7 @@
 spring:
   security:
     user:
-      name: config
-      password: config-password
+      name: ${CONFIG_SERVER_SECURITY_USERNAME:config}
+      password: ${CONFIG_SERVER_SECURITY_PASSWORD:config-password}
       roles:
         - CONFIG

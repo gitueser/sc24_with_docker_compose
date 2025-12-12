@@ -27,11 +27,11 @@ scrape_configs:
         - metrics
       endpoint_params:
         grant_type: client_credentials
-  - job_name: selmag-config-server
+  - job_name: selmag_config_server
     static_configs:
       - targets: ["http://172.17.0.1:8888"]
         labels:
-          application: selmag_config_server
+          application: selmag-config-server
     metrics_path: /actuator/prometheus
     oauth2:
       client_id: victoria-metrics

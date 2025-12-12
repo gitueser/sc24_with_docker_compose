@@ -26,4 +26,3 @@ COPY --from=build /build/extracted/application .
 #COPY ../config/cloud /app-config
 
 ENTRYPOINT exec java ${JAVA_OPTS} org.springframework.boot.loader.launch.JarLauncher ${0} ${@}
-сейц

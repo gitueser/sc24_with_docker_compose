@@ -66,6 +66,7 @@ class ProductRestControllerIT {
     }
 
     @Test
+    @Sql(statements = "truncate table catalogue.t_product restart identity cascade;")
     void findProduct_ProductDoesNotExist_ReturnsNotFound() throws Exception {
         // given
         var requestBuilder = MockMvcRequestBuilders.get("/catalogue-api/products/1")
@@ -147,6 +148,7 @@ class ProductRestControllerIT {
     }
 
     @Test
+    @Sql(statements = "truncate table catalogue.t_product restart identity cascade;")
     void updateProduct_ProductDoesNotExist_ReturnsNotFound() throws Exception {
         // given
         var requestBuilder = MockMvcRequestBuilders.patch("/catalogue-api/products/1")
@@ -207,6 +209,7 @@ class ProductRestControllerIT {
     }
 
     @Test
+    @Sql(statements = "truncate table catalogue.t_product restart identity cascade;")
     void deleteProduct_ProductDoesNotExist_ReturnsNotFound() throws Exception {
         // given
         var requestBuilder = MockMvcRequestBuilders.delete("/catalogue-api/products/1")

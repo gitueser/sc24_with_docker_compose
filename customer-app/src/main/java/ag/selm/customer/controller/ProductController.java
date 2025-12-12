@@ -48,7 +48,8 @@ public class ProductController {
                         .collectList()
                         .doOnNext(productReviews -> model.addAttribute("reviews", productReviews))
                         .then(this.favouriteProductsClient.findFavouriteProductByProductId(product.id())
-                                .doOnNext(favouriteProduct -> model.addAttribute("inFavourite", true)))
+                                .doOnNext(favouriteProduct ->
+                                        model.addAttribute("inFavourite", true)))
                         .thenReturn("customer/products/product")
         );
     }

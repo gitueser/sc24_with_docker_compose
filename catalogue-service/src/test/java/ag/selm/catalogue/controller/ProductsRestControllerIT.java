@@ -66,6 +66,7 @@ class ProductsRestControllerIT {
     }
 
     @Test
+    @Sql(statements = "truncate table catalogue.t_product restart identity cascade;")
     void createProduct_RequestIsValid_ReturnsNewProduct() throws Exception {
         // given
         var requestBuilder = MockMvcRequestBuilders.post("/catalogue-api/products")

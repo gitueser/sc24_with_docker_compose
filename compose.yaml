@@ -77,21 +77,24 @@ services:
       args:
         JAR_FILE: config-server/target/config-server-24.1.1-SNAPSHOT-exec.jar
       tags:
-        - localhost:5000/selmag/config-server:24.1.1
+        - host.docker.internal:5000/selmag/config-server:24.1.1
     environment:
       SERVER_PORT: ${CONFIG_SERVER_PORT_INTERNAL}
-      SPRING_PROFILES_ACTIVE: native
-      SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS: file:///config/{application}/{profile}
+      SPRING_PROFILES_ACTIVE: git
+#      SPRING_PROFILES_ACTIVE: native
+      CONFIG_SERVER_SECURITY_USERNAME: ${CONFIG_SERVER_SECURITY_USERNAME}
+      CONFIG_SERVER_SECURITY_PASSWORD: ${CONFIG_SERVER_SECURITY_PASSWORD}
+#      SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS: file:///config/{application}/{profile}
     #      LOKI: http://loki:3100
-    volumes:
-      - './config/cloud:/config'
+#    volumes:
+#      - './config/cloud:/config'
     ports:
       - "${CONFIG_SERVER_PORT_EXTERNAL}:${CONFIG_SERVER_PORT_INTERNAL}"
     depends_on:
       keycloak:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS -u config:config-password http://127.0.0.1:${CONFIG_SERVER_PORT_INTERNAL}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS -u ${CONFIG_SERVER_SECURITY_USERNAME}:${CONFIG_SERVER_SECURITY_PASSWORD} http://127.0.0.1:${CONFIG_SERVER_PORT_INTERNAL}/actuator/health || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 12
@@ -107,12 +110,16 @@ services:
       args:
         JAR_FILE: eureka-server/target/eureka-server-24.1.1-SNAPSHOT-exec.jar
       tags:
-        - localhost:5000/selmag/eureka-server:24.1.1
+        - host.docker.internal:5000/selmag/eureka-server:24.1.1
     environment:
       SERVER_PORT: ${EUREKA_SERVER_PORT_INTERNAL}
       SPRING_PROFILES_ACTIVE: cloudconfig
       EUREKA_SERVER_CLIENT_ID: ${EUREKA_SERVER_CLIENT_ID}
       EUREKA_SERVER_CLIENT_SECRET: ${EUREKA_SERVER_CLIENT_SECRET}
+      # доступ к Config Server
+      CONFIG_SERVER_URI: http://config-server:${CONFIG_SERVER_PORT_INTERNAL}
+      CONFIG_SERVER_SECURITY_USERNAME: ${CONFIG_SERVER_SECURITY_USERNAME}
+      CONFIG_SERVER_SECURITY_PASSWORD: ${CONFIG_SERVER_SECURITY_PASSWORD}
     #      LOKI: http://loki:3100
     ports:
       - "${EUREKA_SERVER_PORT_EXTERNAL}:${EUREKA_SERVER_PORT_INTERNAL}"
@@ -136,13 +143,16 @@ services:
       args:
         JAR_FILE: admin-server/target/admin-server-24.1.1-SNAPSHOT-exec.jar
       tags:
-        - localhost:5000/selmag/admin-server:24.1.1
+        - host.docker.internal:5000/selmag/admin-server:24.1.1
     environment:
       SERVER_PORT: ${ADMIN_SERVER_PORT_INTERNAL}
       SPRING_PROFILES_ACTIVE: cloudconfig,observability
       JAVA_OPTS: -DMY_SELMAG_APP_HOSTNAME=${MY_SELMAG_APP_HOSTNAME}
       ADMIN_SERVICE_CLIENT_ID: ${ADMIN_SERVICE_CLIENT_ID}
       ADMIN_SERVICE_CLIENT_SECRET: ${ADMIN_SERVICE_CLIENT_SECRET}
+      CONFIG_SERVER_URI: http://config-server:${CONFIG_SERVER_PORT_INTERNAL}
+      CONFIG_SERVER_SECURITY_USERNAME: ${CONFIG_SERVER_SECURITY_USERNAME}
+      CONFIG_SERVER_SECURITY_PASSWORD: ${CONFIG_SERVER_SECURITY_PASSWORD}
     #      LOKI: http://loki:3100
     ports:
       - "${ADMIN_SERVER_PORT_EXTERNAL}:${ADMIN_SERVER_PORT_INTERNAL}"
@@ -168,13 +178,16 @@ services:
       args:
         JAR_FILE: catalogue-service/target/catalogue-service-24.1.1-SNAPSHOT-exec.jar
       tags:
-        - localhost:5000/selmag/catalogue-service:24.1.1
+        - host.docker.internal:5000/selmag/catalogue-service:24.1.1
     environment:
       SERVER_PORT: ${CATALOGUE_SERVICE_PORT_INTERNAL}
       SPRING_PROFILES_ACTIVE: cloudconfig,observability
 #      SPRING_PROFILES_ACTIVE: cloudconfig,gateway,observability
       CATALOGUE_SERVICE_CLIENT_ID: ${CATALOGUE_SERVICE_CLIENT_ID}
       CATALOGUE_SERVICE_CLIENT_SECRET: ${CATALOGUE_SERVICE_CLIENT_SECRET}
+      CONFIG_SERVER_URI: http://config-server:${CONFIG_SERVER_PORT_INTERNAL}
+      CONFIG_SERVER_SECURITY_USERNAME: ${CONFIG_SERVER_SECURITY_USERNAME}
+      CONFIG_SERVER_SECURITY_PASSWORD: ${CONFIG_SERVER_SECURITY_PASSWORD}
       JAVA_OPTS: -DMY_SELMAG_APP_HOSTNAME=${MY_SELMAG_APP_HOSTNAME}
     #      LOKI: http://loki:3100
     depends_on:
@@ -199,13 +212,16 @@ services:
       args:
         JAR_FILE: feedback-service/target/feedback-service-24.1.1-SNAPSHOT-exec.jar
       tags:
-        - localhost:5000/selmag/feedback-service:24.1.1
+        - host.docker.internal:5000/selmag/feedback-service:24.1.1
     environment:
       SERVER_PORT: ${FEEDBACK_SERVICE_PORT_INTERNAL}
       SPRING_PROFILES_ACTIVE: cloudconfig,observability
 #      SPRING_PROFILES_ACTIVE: cloudconfig,gateway,observability
       FEEDBACK_SERVICE_CLIENT_ID: ${FEEDBACK_SERVICE_CLIENT_ID}
       FEEDBACK_SERVICE_CLIENT_SECRET: ${FEEDBACK_SERVICE_CLIENT_SECRET}
+      CONFIG_SERVER_URI: http://config-server:${CONFIG_SERVER_PORT_INTERNAL}
+      CONFIG_SERVER_SECURITY_USERNAME: ${CONFIG_SERVER_SECURITY_USERNAME}
+      CONFIG_SERVER_SECURITY_PASSWORD: ${CONFIG_SERVER_SECURITY_PASSWORD}
       JAVA_OPTS: -DMY_SELMAG_APP_HOSTNAME=${MY_SELMAG_APP_HOSTNAME}
     #      LOKI: http://loki:3100
     depends_on:
@@ -230,7 +246,7 @@ services:
       args:
         JAR_FILE: customer-app/target/customer-app-24.1.1-SNAPSHOT-exec.jar
       tags:
-        - localhost:5000/selmag/customer-app:24.1.1
+        - host.docker.internal:5000/selmag/customer-app:24.1.1
     environment:
       SERVER_PORT: ${CUSTOMER_APP_PORT_INTERNAL}
       SPRING_PROFILES_ACTIVE: cloudconfig,observability
@@ -239,6 +255,9 @@ services:
       CUSTOMER_APP_CLIENT_SECRET: ${CUSTOMER_APP_CLIENT_SECRET}
       CUSTOMER_APP_GATEWAY_CLIENT_ID: ${CUSTOMER_APP_GATEWAY_CLIENT_ID}
       CUSTOMER_APP_GATEWAY_CLIENT_SECRET: ${CUSTOMER_APP_GATEWAY_CLIENT_SECRET}
+      CONFIG_SERVER_URI: http://config-server:${CONFIG_SERVER_PORT_INTERNAL}
+      CONFIG_SERVER_SECURITY_USERNAME: ${CONFIG_SERVER_SECURITY_USERNAME}
+      CONFIG_SERVER_SECURITY_PASSWORD: ${CONFIG_SERVER_SECURITY_PASSWORD}
       JAVA_OPTS: -DMY_SELMAG_APP_HOSTNAME=${MY_SELMAG_APP_HOSTNAME}
     #      LOKI: http://loki:3100
     depends_on:
@@ -262,7 +281,7 @@ services:
       args:
         JAR_FILE: manager-app/target/manager-app-24.1.1-SNAPSHOT-exec.jar
       tags:
-        - localhost:5000/selmag/manager-app:24.1.1
+        - host.docker.internal:5000/selmag/manager-app:24.1.1
     environment:
       SERVER_PORT: ${MANAGER_APP_PORT_INTERNAL}
 #      SPRING_PROFILES_ACTIVE: cloudconfig,gateway,observability
@@ -271,6 +290,9 @@ services:
       MANAGER_APP_CLIENT_SECRET: ${MANAGER_APP_CLIENT_SECRET}
       MANAGER_APP_GATEWAY_CLIENT_ID: ${MANAGER_APP_GATEWAY_CLIENT_ID}
       MANAGER_APP_GATEWAY_CLIENT_SECRET: ${MANAGER_APP_GATEWAY_CLIENT_SECRET}
+      CONFIG_SERVER_URI: http://config-server:${CONFIG_SERVER_PORT_INTERNAL}
+      CONFIG_SERVER_SECURITY_USERNAME: ${CONFIG_SERVER_SECURITY_USERNAME}
+      CONFIG_SERVER_SECURITY_PASSWORD: ${CONFIG_SERVER_SECURITY_PASSWORD}
       JAVA_OPTS: -DMY_SELMAG_APP_HOSTNAME=${MY_SELMAG_APP_HOSTNAME}
     #      LOKI: http://loki:3100
     depends_on:
@@ -294,7 +316,7 @@ services:
       args:
         JAR_FILE: api-gateway/target/api-gateway-24.1.1-SNAPSHOT-exec.jar
       tags:
-        - localhost:5000/selmag/api-gateway:24.1.1
+        - host.docker.internal:5000/selmag/api-gateway:24.1.1
     environment:
       SERVER_PORT: ${API_GATEWAY_PORT_INTERNAL}
 #      SPRING_PROFILES_ACTIVE: cloudconfig,observability
@@ -302,6 +324,9 @@ services:
       JAVA_OPTS: -DMY_SELMAG_APP_HOSTNAME=${MY_SELMAG_APP_HOSTNAME}
       API_GATEWAY_CLIENT_ID: ${API_GATEWAY_CLIENT_ID}
       API_GATEWAY_CLIENT_SECRET: ${API_GATEWAY_CLIENT_SECRET}
+      CONFIG_SERVER_URI: http://config-server:${CONFIG_SERVER_PORT_INTERNAL}
+      CONFIG_SERVER_SECURITY_USERNAME: ${CONFIG_SERVER_SECURITY_USERNAME}
+      CONFIG_SERVER_SECURITY_PASSWORD: ${CONFIG_SERVER_SECURITY_PASSWORD}
     #      LOKI: http://loki:3100
     ports:
       - "${API_GATEWAY_PORT_EXTERNAL}:${API_GATEWAY_PORT_INTERNAL}"
