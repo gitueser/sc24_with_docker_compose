@@ -5,4 +5,7 @@ spring:
     import: 'optional:configserver:'
   cloud:
     config:
-      uri: http://config:config-password@config-server:8888
+      uri: ${CONFIG_SERVER_URI:http://config-server:8888}
+      username: ${CONFIG_SERVER_SECURITY_USERNAME:config}
+      password: ${CONFIG_SERVER_SECURITY_PASSWORD:config-password}
+#      uri: http://config:config-password@config-server:8888

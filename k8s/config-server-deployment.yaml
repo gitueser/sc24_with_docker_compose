@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: selmag-config-server-deployment
+  namespace: selmag
+  labels:
+    app: selmag-config-server
+spec:
+  selector:
+    matchLabels:
+      app: selmag-config-server
+  template:
+    metadata:
+      labels:
+        app: selmag-config-server
+    spec:
+      containers:
+        - name: selmag-config-server
+          image: host.docker.internal:5000/selmag/config-server:24.1.1
+          ports:
+            - containerPort: 8888
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: git
+            - name: SERVER_PORT
+              value: "8888"
+          envFrom:
+            - configMapRef:
+                name: selmag-config
+            - secretRef:
+                name: selmag-secret
