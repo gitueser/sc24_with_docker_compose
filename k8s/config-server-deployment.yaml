@@ -29,3 +29,35 @@ spec:
                 name: selmag-config
             - secretRef:
                 name: selmag-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: selmag-config-server-svc
+  namespace: selmag
+spec:
+  type: NodePort
+  ports:
+    - port: 8888
+      name: http
+  selector:
+    app: selmag-config-server
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: selmag-config-server-ingress
+  namespace: selmag
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: config.selm.ag.192.168.49.2.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: selmag-config-server-svc
+                port:
+                  name: http
