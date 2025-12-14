@@ -61,3 +61,4 @@ spec:
                 name: selmag-config-server-svc
                 port:
                   name: http
+
