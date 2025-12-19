@@ -113,6 +113,7 @@ services:
         - host.docker.internal:5000/selmag/eureka-server:24.1.1
     environment:
       SERVER_PORT: ${EUREKA_SERVER_PORT_INTERNAL}
+      EUREKA_HOSTNAME: ${EUREKA_HOSTNAME}
       SPRING_PROFILES_ACTIVE: cloudconfig
       EUREKA_SERVER_CLIENT_ID: ${EUREKA_SERVER_CLIENT_ID}
       EUREKA_SERVER_CLIENT_SECRET: ${EUREKA_SERVER_CLIENT_SECRET}

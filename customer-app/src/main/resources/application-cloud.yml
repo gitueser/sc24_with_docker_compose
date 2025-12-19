@@ -1,9 +1,11 @@
 selmag:
   services:
     catalogue:
-      uri: lb://selmag-catalogue-service
+      uri: ${CATALOGUE_SERVICE_URI:lb://selmag-catalogue-service}
+#      uri: lb://selmag-catalogue-service
     feedback:
-      uri: lb://selmag-feedback-service
+      uri: ${FEEDBACK_SERVICE_URI:lb://selmag-feedback-service}
+#      uri: lb://selmag-feedback-service
 server:
   port: 8083
 spring:

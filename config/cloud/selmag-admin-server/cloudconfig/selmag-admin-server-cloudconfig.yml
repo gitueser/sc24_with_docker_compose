@@ -3,11 +3,11 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak:8080/realms/selmag
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/selmag}
       client:
         provider:
           keycloak:
-            issuer-uri: http://keycloak:8080/realms/selmag
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/selmag}
             user-name-attribute: preferred_username
         registration:
           keycloak:
@@ -31,6 +31,11 @@ spring:
             scope:
               - discovery
 management:
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
   endpoints:
     web:
       exposure:
@@ -42,11 +47,11 @@ management:
 
 eureka:
   instance:
-    hostname: admin-server
+    hostname: ${ADMIN_HOSTNAME:admin-server}
     leaseRenewalIntervalInSeconds: 20
     leaseExpirationDurationInSeconds: 60
   client:
     service-url:
-      defaultZone: http://eureka-server:8761/eureka/
+      defaultZone: ${EUREKA_DEFAULTZONE:http://eureka-server:8761/eureka/}
     registryFetchIntervalSeconds: 20
     register-with-eureka: false

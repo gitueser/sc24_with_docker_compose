@@ -4,9 +4,9 @@ spring:
       client:
         enabled: false
   datasource:
-    url: jdbc:postgresql://catalogue-db:5432/catalogue
-    username: catalogue
-    password: catalogue
+    url: ${CATALOGUE_DB_JDBC_URL:jdbc:postgresql://catalogue-db:5432/catalogue}
+    username: ${CATALOGUE_DB_USER:catalogue}
+    password: ${CATALOGUE_DB_PASSWORD:catalogue}
   flyway:
     schemas:
       - public
@@ -17,7 +17,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak:8080/realms/selmag
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/selmag}
       client:
         registration:
           keycloak:
@@ -35,7 +35,7 @@ spring:
               - discovery
         provider:
           keycloak:
-            issuer-uri: http://keycloak:8080/realms/selmag
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/selmag}
 logging:
   level:
     sql: info
@@ -45,7 +45,7 @@ springdoc:
       client-id: catalogue-service-swagger-ui
       use-pkce-with-authorization-code-grant: true
 keycloak:
-  uri: http://keycloak:8080
+  uri: ${KEYCLOAK_URI:http://keycloak:8080}
 management:
   health:
     livenessstate:
@@ -69,4 +69,4 @@ eureka:
   client:
     registryFetchIntervalSeconds: 20
     service-url:
-      defaultZone: http://eureka-server:8761/eureka/
+      defaultZone: ${EUREKA_DEFAULTZONE:http://eureka-server:8761/eureka/}

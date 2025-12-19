@@ -1,32 +1,39 @@
+selmag:
+  dns:
+    nip-host-suffix: ${SELMAG_BASE_DOMAIN:selm.ag}.${NIP_IO_IP:127.0.0.1}.${NIP_IO_SUFFIX:nip.io}
 spring:
   cloud:
     gateway:
       routes:
         - id: catalogue-service-route
-          uri: lb://selmag-catalogue-service
+          uri: ${CATALOGUE_SERVICE_URI:lb://selmag-catalogue-service}
           predicates:
-            - Host=catalogue.api.selm.ag.127.0.0.1.nip.io
+            - Host=${CATALOGUE_SUBDOMAIN:catalogue.api}.${selmag.dns.nip-host-suffix}
+#            - Host=${CATALOGUE_API_HOST:catalogue.api.selm.ag.127.0.0.1.nip.io}
         - id: feedback-service-route
-          uri: lb://selmag-feedback-service
+          uri: ${FEEDBACK_SERVICE_URI:lb://selmag-feedback-service}
           predicates:
-            - Host=feedback.api.selm.ag.127.0.0.1.nip.io
+            - Host=${FEEDBACK_SUBDOMAIN:feedback.api}.${selmag.dns.nip-host-suffix}
+#            - Host=${FEEDBACK_API_HOST:feedback.api.selm.ag.127.0.0.1.nip.io}
         - id: manager-app-route
-          uri: lb://selmag-manager-app
+          uri: ${MANAGER_APP_URI:lb://selmag-manager-app}
           predicates:
-            - Host=manager.selm.ag.127.0.0.1.nip.io
+            - Host=${MANAGER_SUBDOMAIN:manager}.${selmag.dns.nip-host-suffix}
+#            - Host=${MANAGER_UI_HOST:manager.selm.ag.127.0.0.1.nip.io}
         - id: customer-app-route
-          uri: lb://selmag-customer-app
+          uri: ${CUSTOMER_APP_URI:lb://selmag-customer-app}
           predicates:
-            - Host=customer.selm.ag.127.0.0.1.nip.io
+            - Host=${CUSTOMER_SUBDOMAIN:customer}.${selmag.dns.nip-host-suffix}
+#            - Host=${CUSTOMER_UI_HOST:customer.selm.ag.127.0.0.1.nip.io}
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak:8080/realms/selmag
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/selmag}
       client:
         provider:
           keycloak:
-            issuer-uri: http://keycloak:8080/realms/selmag
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/selmag}
         registration:
           discovery:
             provider: keycloak
@@ -64,5 +71,5 @@ eureka:
     leaseExpirationDurationInSeconds: 60
   client:
     service-url:
-      defaultZone: http://eureka-server:8761/eureka/
+      defaultZone: ${EUREKA_DEFAULTZONE:http://eureka-server:8761/eureka/}
     registryFetchIntervalSeconds: 20

@@ -1,7 +1,7 @@
 selmag:
   services:
     catalogue:
-      uri: lb://selmag-catalogue-service
+      uri: ${CATALOGUE_SERVICE_URI:lb://selmag-catalogue-service}
       registration-id: keycloak
 spring:
   boot:
@@ -13,7 +13,7 @@ spring:
       client:
         provider:
           keycloak:
-            issuer-uri: http://keycloak:8080/realms/selmag
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/selmag}
             user-name-attribute: preferred_username
         registration:
           keycloak:
@@ -40,7 +40,7 @@ spring:
               - discovery
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak:8080/realms/selmag
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/selmag}
 management:
   health:
     livenessstate:
@@ -64,4 +64,4 @@ eureka:
   client:
     registryFetchIntervalSeconds: 20
     service-url:
-      defaultZone: http://eureka-server:8761/eureka/
+      defaultZone: ${EUREKA_DEFAULTZONE:http://eureka-server:8761/eureka/}

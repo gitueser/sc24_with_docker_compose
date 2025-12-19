@@ -1,7 +1,8 @@
 selmag:
   services:
     catalogue:
-      uri: lb://selmag-catalogue-service
+      uri: ${CATALOGUE_SERVICE_URI:lb://selmag-catalogue-service}
+#      uri: lb://selmag-catalogue-service
       registration-id: keycloak
 spring:
   application:
