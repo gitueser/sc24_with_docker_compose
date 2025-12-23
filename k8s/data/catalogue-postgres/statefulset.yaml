@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: selmag-catalogue-db
+  namespace: selmag
+  labels:
+    app: selmag-catalogue-db
+spec:
+  serviceName: selmag-catalogue-db-svc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: selmag-catalogue-db
+  template:
+    metadata:
+      labels:
+        app: selmag-catalogue-db
+    spec:
+      containers:
+        - name: postgres
+#          image: postgres:16
+          image: host.docker.internal:5000/selmag/postgres:16
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgresql
+
+          # Оставляем, потому что это удобно для других переменных,
+          # но Postgres-специфичные переменные задаём ниже явно.
+          envFrom:
+            - configMapRef:
+                name: selmag-config
+            - secretRef:
+                name: selmag-secret
+
+          # Преобразуем твои переменные в те, которые понимает postgres:16
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: CATALOGUE_DB_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: CATALOGUE_DB_NAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: selmag-secret
+                  key: CATALOGUE_DB_PASSWORD
+
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 12
+
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: selmag-catalogue-db-pvc

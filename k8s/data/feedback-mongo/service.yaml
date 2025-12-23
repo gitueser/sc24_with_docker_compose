@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: selmag-feedback-db-svc
+  namespace: selmag
+  labels:
+    app: selmag-feedback-db
+spec:
+  type: ClusterIP
+  selector:
+    app: selmag-feedback-db
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: 27017

@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: selmag-config-server-deployment
+  namespace: selmag
+  labels:
+    app: selmag-config-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: selmag-config-server
+  template:
+    metadata:
+      labels:
+        app: selmag-config-server
+    spec:
+      containers:
+        - name: selmag-config-server
+          image: host.docker.internal:5000/selmag/config-server:24.1.1
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8888
+
+          # Подтягиваем ВСЕ переменные из selmag-config и selmag-secret (как ты и хочешь),
+          # а ключевые для Spring Boot/Config Server задаём явно через valueFrom, чтобы:
+          # 1) не хардкодить значения,
+          # 2) гарантировать, что именно эти ключи реально существуют и используются.
+          envFrom:
+            - configMapRef:
+                name: selmag-config
+            - secretRef:
+                name: selmag-secret
+
+          env:
+            # Spring
+            - name: SPRING_PROFILES_ACTIVE
+              value: "git"
+
+            # Порт приложения внутри контейнера берём из configMap
+            # (в probes используем именно $SERVER_PORT как "истину")
+            - name: SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: CONFIG_SERVER_PORT_INTERNAL
+
+            # На всякий случай: если в будущем решишь вынести креды в отдельные ключи
+            # или переименовать их, здесь это будет видно сразу.
+            - name: CONFIG_SERVER_SECURITY_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: CONFIG_SERVER_SECURITY_USERNAME
+            - name: CONFIG_SERVER_SECURITY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: selmag-secret
+                  key: CONFIG_SERVER_SECURITY_PASSWORD
+
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >
+                  curl -fsS
+                  -u "$CONFIG_SERVER_SECURITY_USERNAME:$CONFIG_SERVER_SECURITY_PASSWORD"
+                  "http://127.0.0.1:$SERVER_PORT/actuator/health"
+                  >/dev/null
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 12
+
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >
+                  curl -fsS
+                  -u "$CONFIG_SERVER_SECURITY_USERNAME:$CONFIG_SERVER_SECURITY_PASSWORD"
+                  "http://127.0.0.1:$SERVER_PORT/actuator/health"
+                  >/dev/null
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6

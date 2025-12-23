@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: selmag
+  labels:
+    kubernetes.io/metadata.name: selmag
+    app.kubernetes.io/name: selmag
+    app.kubernetes.io/part-of: selmag-platform
+    app.kubernetes.io/environment: dev

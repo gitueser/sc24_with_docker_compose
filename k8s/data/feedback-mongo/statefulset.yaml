@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: selmag-feedback-db
+  namespace: selmag
+  labels:
+    app: selmag-feedback-db
+spec:
+  serviceName: selmag-feedback-db-svc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: selmag-feedback-db
+  template:
+    metadata:
+      labels:
+        app: selmag-feedback-db
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: mongo
+#          image: mongo:7
+          image: host.docker.internal:5000/selmag/mongo:7
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--bind_ip_all"
+            - "--quiet"
+          ports:
+            - containerPort: 27017
+              name: mongodb
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+          readinessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 12
+          livenessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: selmag-feedback-db-pvc

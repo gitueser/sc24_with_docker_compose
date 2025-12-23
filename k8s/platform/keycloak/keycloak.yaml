@@ -1,0 +1,92 @@
+#apiVersion: apps/v1
+#kind: Deployment
+#metadata:
+#  name: selmag-keycloak-deployment
+#  namespace: selmag
+#  labels:
+#    app: selmag-keycloak
+#spec:
+#  replicas: 1
+#  selector:
+#    matchLabels:
+#      app: selmag-keycloak
+#  template:
+#    metadata:
+#      labels:
+#        app: selmag-keycloak
+#    spec:
+#      volumes:
+#        - name: keycloak-realm
+#          secret:
+#            secretName: selmag-keycloak-realm
+#      containers:
+#        - name: keycloak
+#          image: host.docker.internal:5000/selmag/keycloak:23.0.7
+#          imagePullPolicy: IfNotPresent
+#          args:
+#            - start-dev
+#            - --import-realm
+#          ports:
+#            - containerPort: 8080
+#              name: http
+#          envFrom:
+#            - configMapRef:
+#                name: selmag-config
+#            - secretRef:
+#                name: selmag-secret
+#          env:
+#            - name: KC_HOSTNAME_URL
+#              value: "http://keycloak.selm.ag.192.168.49.2.nip.io"
+#            - name: KC_HOSTNAME_STRICT
+#              value: "false"
+#          volumeMounts:
+#            - name: keycloak-realm
+#              mountPath: /opt/keycloak/data/import
+#              readOnly: true
+#          readinessProbe:
+#            httpGet:
+#              path: /realms/selmag/.well-known/openid-configuration
+#              port: 8080
+#            initialDelaySeconds: 30
+#            periodSeconds: 10
+#          livenessProbe:
+#            httpGet:
+#              path: /realms/selmag/.well-known/openid-configuration
+#              port: 8080
+#            initialDelaySeconds: 60
+#            periodSeconds: 20
+#---
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: selmag-keycloak-svc
+#  namespace: selmag
+#spec:
+#  type: ClusterIP
+#  selector:
+#    app: selmag-keycloak
+#  ports:
+#    - name: http
+#      port: 8080
+#      targetPort: 8080
+#---
+#apiVersion: networking.k8s.io/v1
+#kind: Ingress
+#metadata:
+#  name: selmag-keycloak-ingress
+#  namespace: selmag
+#  annotations:
+#    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+#spec:
+#  ingressClassName: nginx
+#  rules:
+#    - host: keycloak.selm.ag.192.168.49.2.nip.io
+#      http:
+#        paths:
+#          - path: /
+#            pathType: Prefix
+#            backend:
+#              service:
+#                name: selmag-keycloak-svc
+#                port:
+#                  name: http

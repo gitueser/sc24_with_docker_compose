@@ -1,0 +1,18 @@
+#apiVersion: networking.k8s.io/v1
+#kind: Ingress
+#metadata:
+#  name: selmag-config-server-ingress
+#  namespace: selmag
+#spec:
+#  ingressClassName: nginx
+#  rules:
+#    - host: config.selm.ag.192.168.49.2.nip.io
+#      http:
+#        paths:
+#          - path: /
+#            pathType: Prefix
+#            backend:
+#              service:
+#                name: selmag-config-server-svc
+#                port:
+#                  name: http

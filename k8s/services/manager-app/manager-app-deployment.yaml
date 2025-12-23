@@ -1,0 +1,62 @@
+#apiVersion: apps/v1
+#kind: Deployment
+#metadata:
+#  name: selmag-manager-app-deployment
+#  namespace: selmag
+#  labels:
+#    app: selmag-manager-app
+#spec:
+#  selector:
+#    matchLabels:
+#      app: selmag-manager-app
+#  template:
+#    metadata:
+#      labels:
+#        app: selmag-manager-app
+#    spec:
+#      containers:
+#        - name: selmag-manager-app
+#          image: host.docker.internal:5000/selmag/manager-app:24.1.1
+#          ports:
+#            - containerPort: 8087
+#          env:
+#            - name: SPRING_PROFILES_ACTIVE
+#              value: "cloudconfig"
+##              value: "cloudconfig,observability"
+#            - name: SERVER_PORT
+#              value: "8087"
+#          envFrom:
+#            - configMapRef:
+#                name: selmag-config
+#            - secretRef:
+#                name: selmag-secret
+#          readinessProbe:
+#            httpGet:
+#              path: /actuator/health/readiness
+#              port: 8087
+#            initialDelaySeconds: 60
+#            periodSeconds: 10
+#            timeoutSeconds: 3
+#            failureThreshold: 12
+#          livenessProbe:
+#            httpGet:
+#              path: /actuator/health/liveness
+#              port: 8087
+#            initialDelaySeconds: 60
+#            periodSeconds: 20
+#            timeoutSeconds: 3
+#            failureThreshold: 6
+#---
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: selmag-manager-app-svc
+#  namespace: selmag
+#spec:
+#  type: ClusterIP
+#  selector:
+#    app: selmag-manager-app
+#  ports:
+#    - name: http
+#      port: 8087
+#      targetPort: 8087

@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: selmag-keycloak-deployment
+  namespace: selmag
+  labels:
+    app: selmag-keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: selmag-keycloak
+  template:
+    metadata:
+      labels:
+        app: selmag-keycloak
+    spec:
+      volumes:
+        - name: keycloak-realm
+          secret:
+            secretName: selmag-keycloak-realm
+      containers:
+        - name: keycloak
+          image: host.docker.internal:5000/selmag/keycloak:23.0.7
+          imagePullPolicy: IfNotPresent
+          args:
+            - start-dev
+            - --import-realm
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: selmag-config
+            - secretRef:
+                name: selmag-secret
+          # ВАЖНО:
+          # KC_HOSTNAME_URL задаёт "канонический" base URL и, как следствие, issuer в OIDC metadata.
+          # Чтобы Spring-сервисы могли использовать INTERNAL issuer (selmag-keycloak-svc),
+          # KC_HOSTNAME_URL должен быть ВНУТРЕННИМ: http://selmag-keycloak-svc:8080
+          env:
+            - name: KC_HOSTNAME_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: KC_HOSTNAME_URL
+            - name: KC_HOSTNAME_STRICT
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: KC_HOSTNAME_STRICT
+            - name: KC_PROXY
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: KC_PROXY
+          volumeMounts:
+            - name: keycloak-realm
+              mountPath: /opt/keycloak/data/import
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /realms/selmag/.well-known/openid-configuration
+              port: http
+            # Keycloak может подниматься дольше минуты
+            failureThreshold: 60
+            periodSeconds: 5
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /realms/selmag/.well-known/openid-configuration
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /realms/selmag/.well-known/openid-configuration
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
