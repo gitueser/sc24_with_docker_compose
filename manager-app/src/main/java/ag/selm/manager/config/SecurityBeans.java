@@ -22,25 +22,89 @@ import java.util.stream.Stream;
 @Configuration
 public class SecurityBeans {
 
+//    @Bean
+//    @Priority(0)
+//    public SecurityFilterChain metricsSecurityFilterChain(HttpSecurity http) throws Exception {
+//        return http
+//                .securityMatcher("/actuator/**")
+//                .authorizeHttpRequests(authorizeHttpRequests -> authorizeHttpRequests
+//                        .requestMatchers("/actuator/**").hasAuthority("SCOPE_metrics")
+//                        .anyRequest().denyAll())
+//                .oauth2ResourceServer(customizer -> customizer.jwt(Customizer.withDefaults()))
+//                .sessionManagement(customizer -> customizer.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+//                .build();
+//    }
+//
+//    @Bean
+//    @Priority(1)
+//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+//        return http
+//                .authorizeHttpRequests(authorizeHttpRequests -> authorizeHttpRequests
+//                        .anyRequest().hasRole("MANAGER"))
+//                .oauth2Login(Customizer.withDefaults())
+//                .oauth2Client(Customizer.withDefaults())
+//                .build();
+//    }
+//
+//    @Bean
+//    public OAuth2UserService<OidcUserRequest, OidcUser> oAuth2UserService() {
+//        OidcUserService oidcUserService = new OidcUserService();
+//        return userRequest -> {
+//            OidcUser oidcUser = oidcUserService.loadUser(userRequest);
+//            List<GrantedAuthority> authorities =
+//                    Stream.concat(oidcUser.getAuthorities().stream(),
+//                            Optional.ofNullable(oidcUser.getClaimAsStringList("groups"))
+//                                    .orElseGet(List::of)
+//                                    .stream()
+//                                    .filter(role -> role.startsWith("ROLE_"))
+//                                    .map(SimpleGrantedAuthority::new)
+//                                    .map(GrantedAuthority.class::cast))
+//                            .toList();
+//
+//            return new DefaultOidcUser(authorities, oidcUser.getIdToken(), oidcUser.getUserInfo());
+//        };
+//    }
+
+    /**
+     * Actuator health endpoints: allow unauthenticated access for Kubernetes probes.
+     * This chain must win over the general /actuator/** chain.
+     */
     @Bean
     @Priority(0)
-    public SecurityFilterChain metricsSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain actuatorHealthSecurityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .securityMatcher("/actuator/**")
-                .authorizeHttpRequests(authorizeHttpRequests -> authorizeHttpRequests
-                        .requestMatchers("/actuator/**").hasAuthority("SCOPE_metrics")
-                        .anyRequest().denyAll())
-                .oauth2ResourceServer(customizer -> customizer.jwt(Customizer.withDefaults()))
-                .sessionManagement(customizer -> customizer.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .securityMatcher("/actuator/health/**")
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .build();
     }
 
+    /**
+     * Other actuator endpoints: only for metrics scope.
+     */
     @Bean
     @Priority(1)
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain actuatorSecurityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .authorizeHttpRequests(authorizeHttpRequests -> authorizeHttpRequests
-                        .anyRequest().hasRole("MANAGER"))
+                .securityMatcher("/actuator/**")
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/actuator/**").hasAuthority("SCOPE_metrics")
+                        .anyRequest().denyAll())
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .build();
+    }
+
+    /**
+     * Application: only MANAGER role, interactive login via OIDC.
+     */
+    @Bean
+    @Priority(2)
+    public SecurityFilterChain appSecurityFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .authorizeHttpRequests(auth -> auth.anyRequest().hasRole("MANAGER"))
                 .oauth2Login(Customizer.withDefaults())
                 .oauth2Client(Customizer.withDefaults())
                 .build();
@@ -51,14 +115,17 @@ public class SecurityBeans {
         OidcUserService oidcUserService = new OidcUserService();
         return userRequest -> {
             OidcUser oidcUser = oidcUserService.loadUser(userRequest);
+
             List<GrantedAuthority> authorities =
-                    Stream.concat(oidcUser.getAuthorities().stream(),
-                            Optional.ofNullable(oidcUser.getClaimAsStringList("groups"))
-                                    .orElseGet(List::of)
-                                    .stream()
-                                    .filter(role -> role.startsWith("ROLE_"))
-                                    .map(SimpleGrantedAuthority::new)
-                                    .map(GrantedAuthority.class::cast))
+                    Stream.concat(
+                                    oidcUser.getAuthorities().stream(),
+                                    Optional.ofNullable(oidcUser.getClaimAsStringList("groups"))
+                                            .orElseGet(List::of)
+                                            .stream()
+                                            .filter(role -> role.startsWith("ROLE_"))
+                                            .map(SimpleGrantedAuthority::new)
+                                            .map(GrantedAuthority.class::cast)
+                            )
                             .toList();
 
             return new DefaultOidcUser(authorities, oidcUser.getIdToken(), oidcUser.getUserInfo());

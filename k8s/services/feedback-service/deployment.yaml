@@ -6,6 +6,7 @@ metadata:
   labels:
     app: selmag-feedback-service
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: selmag-feedback-service
@@ -17,12 +18,13 @@ spec:
       containers:
         - name: selmag-feedback-service
           image: host.docker.internal:5000/selmag/feedback-service:24.1.1
+          imagePullPolicy: Always
           ports:
-            - containerPort: 8084
+            - name: http
+              containerPort: 8084
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "cloudconfig"
-            #              value: "cloudconfig,observability"
             - name: SERVER_PORT
               value: "8084"
           envFrom:
@@ -33,7 +35,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
-              port: 8084
+              port: http
             initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 3
@@ -41,7 +43,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
-              port: 8084
+              port: http
             initialDelaySeconds: 60
             periodSeconds: 20
             timeoutSeconds: 3

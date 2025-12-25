@@ -18,12 +18,15 @@ spec:
       containers:
         - name: selmag-customer-app
           image: host.docker.internal:5000/selmag/customer-app:24.1.1
+          imagePullPolicy: Always
           ports:
-            - containerPort: 8083
+            - name: http
+              containerPort: 8083
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "cloudconfig"
-            #              value: "cloudconfig,observability"
+            # - name: SPRING_PROFILES_ACTIVE
+            #   value: "cloudconfig,observability"
             - name: SERVER_PORT
               value: "8083"
           envFrom:
@@ -34,7 +37,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
-              port: 8083
+              port: http
             initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 3
@@ -42,7 +45,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
-              port: 8083
+              port: http
             initialDelaySeconds: 60
             periodSeconds: 20
             timeoutSeconds: 3

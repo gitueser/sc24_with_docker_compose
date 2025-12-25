@@ -13,14 +13,22 @@ public class SecurityBeans {
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
-                .authorizeExchange(configurer -> configurer
-                        .pathMatchers("/webjars/**", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**")
-                            .permitAll()
+                .authorizeExchange(ex -> ex
+                        // Swagger / OpenAPI
+                        .pathMatchers("/webjars/**", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
+
+                        // Kubernetes probes must be unauthenticated (kubelet не умеет добавлять токены)
+                        .pathMatchers("/actuator/health/liveness", "/actuator/health/readiness").permitAll()
+
+                        // Остальные actuator эндпоинты — только под metrics scope
                         .pathMatchers("/actuator/**").hasAuthority("SCOPE_metrics")
-                        .anyExchange().authenticated())
+
+                        // Дальше — как было: всё остальное требует аутентификацию
+                        .anyExchange().authenticated()
+                )
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
-                .oauth2ResourceServer(customizer -> customizer.jwt(Customizer.withDefaults()))
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
                 .oauth2Client(Customizer.withDefaults())
                 .build();
     }

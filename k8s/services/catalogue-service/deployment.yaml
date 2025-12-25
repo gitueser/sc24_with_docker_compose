@@ -18,23 +18,27 @@ spec:
       containers:
         - name: selmag-catalogue-service
           image: host.docker.internal:5000/selmag/catalogue-service:24.1.1
+          imagePullPolicy: Always
           ports:
-            - containerPort: 8081
-          env:
-            - name: SPRING_PROFILES_ACTIVE
-              value: "cloudconfig"
-            #              value: "cloudconfig,observability"
-            - name: SERVER_PORT
-              value: "8081"
+            - name: http
+              containerPort: 8081
           envFrom:
             - configMapRef:
                 name: selmag-config
             - secretRef:
                 name: selmag-secret
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "cloudconfig"
+            - name: SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: CATALOGUE_SERVICE_PORT_INTERNAL
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
-              port: 8081
+              port: http
             initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 3
@@ -42,7 +46,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
-              port: 8081
+              port: http
             initialDelaySeconds: 60
             periodSeconds: 20
             timeoutSeconds: 3

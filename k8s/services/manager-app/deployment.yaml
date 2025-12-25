@@ -6,6 +6,7 @@ metadata:
   labels:
     app: selmag-manager-app
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: selmag-manager-app
@@ -17,12 +18,15 @@ spec:
       containers:
         - name: selmag-manager-app
           image: host.docker.internal:5000/selmag/manager-app:24.1.1
+          imagePullPolicy: Always
           ports:
             - containerPort: 8087
+              name: http
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "cloudconfig"
-            #              value: "cloudconfig,observability"
+            # - name: SPRING_PROFILES_ACTIVE
+            #   value: "cloudconfig,observability"
             - name: SERVER_PORT
               value: "8087"
           envFrom:
@@ -33,7 +37,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
-              port: 8087
+              port: http
             initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 3
@@ -41,7 +45,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
-              port: 8087
+              port: http
             initialDelaySeconds: 60
             periodSeconds: 20
             timeoutSeconds: 3
