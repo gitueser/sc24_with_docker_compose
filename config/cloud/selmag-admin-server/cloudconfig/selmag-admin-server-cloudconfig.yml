@@ -4,42 +4,40 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${KEYCLOAK_INTERNAL_ISSUER_URI:http://keycloak:8080/realms/selmag}
+
       client:
         provider:
           keycloak:
             issuer-uri: ${KEYCLOAK_INTERNAL_ISSUER_URI:http://keycloak:8080/realms/selmag}
             user-name-attribute: preferred_username
 
-          # Только для browser-login: authorization endpoint публичный
           login:
             authorization-uri: ${KEYCLOAK_PUBLIC_URI:http://keycloak:8080}/realms/selmag/protocol/openid-connect/auth
-            # обмен кода на токен и JWKS — изнутри кластера
-            token-uri: ${KEYCLOAK_INTERNAL_TOKEN_URI:http://keycloak:8080}/realms/selmag/protocol/openid-connect/token
-            jwk-set-uri: ${KEYCLOAK_INTERNAL_JWKS_URI:http://keycloak:8080}/realms/selmag/protocol/openid-connect/certs
-            user-info-uri: ${KEYCLOAK_INTERNAL_USERINFO_URI:http://keycloak:8080}/realms/selmag/protocol/openid-connect/userinfo
+            token-uri: ${KC_HOSTNAME_URL:http://keycloak:8080}/realms/selmag/protocol/openid-connect/token
+            jwk-set-uri: ${KC_HOSTNAME_URL:http://keycloak:8080}/realms/selmag/protocol/openid-connect/certs
+            user-info-uri: ${KC_HOSTNAME_URL:http://keycloak:8080}/realms/selmag/protocol/openid-connect/userinfo
             user-name-attribute: preferred_username
 
         registration:
           keycloak:
             authorization-grant-type: client_credentials
-            scope:
-              - metrics
+            scope: [ metrics ]
             client-id: ${ADMIN_SERVICE_CLIENT_ID}
             client-secret: ${ADMIN_SERVICE_CLIENT_SECRET}
+
           login:
-            provider: keycloak
-            scope:
-              - metrics
-              - openid
+            provider: login
+            authorization-grant-type: authorization_code
+            scope: [ metrics, openid ]
             client-id: ${ADMIN_SERVICE_CLIENT_ID}
             client-secret: ${ADMIN_SERVICE_CLIENT_SECRET}
+
           discovery:
             provider: keycloak
+            authorization-grant-type: client_credentials
+            scope: [ discovery ]
             client-id: ${ADMIN_SERVICE_CLIENT_ID}
             client-secret: ${ADMIN_SERVICE_CLIENT_SECRET}
-            authorization-grant-type: client_credentials
-            scope:
-              - discovery
 management:
   health:
     livenessstate:
