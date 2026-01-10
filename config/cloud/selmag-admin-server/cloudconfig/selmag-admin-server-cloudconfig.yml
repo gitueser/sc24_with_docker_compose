@@ -11,6 +11,8 @@ spring:
             issuer-uri: ${KEYCLOAK_INTERNAL_ISSUER_URI:http://keycloak:8080/realms/selmag}
             user-name-attribute: preferred_username
 
+          # Для browser-login: authorization endpoint публичный,
+          # а token/jwk/userinfo берём через внутренний URL (внутри кластера/сети).
           login:
             authorization-uri: ${KEYCLOAK_PUBLIC_URI:http://keycloak:8080}/realms/selmag/protocol/openid-connect/auth
             token-uri: ${KC_HOSTNAME_URL:http://keycloak:8080}/realms/selmag/protocol/openid-connect/token
@@ -20,17 +22,20 @@ spring:
 
         registration:
           keycloak:
+            provider: keycloak
             authorization-grant-type: client_credentials
             scope: [ metrics ]
             client-id: ${ADMIN_SERVICE_CLIENT_ID}
             client-secret: ${ADMIN_SERVICE_CLIENT_SECRET}
 
+          # ВАЖНО: redirect-uri обязателен для authorization_code
           login:
             provider: login
             authorization-grant-type: authorization_code
             scope: [ metrics, openid ]
             client-id: ${ADMIN_SERVICE_CLIENT_ID}
             client-secret: ${ADMIN_SERVICE_CLIENT_SECRET}
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
 
           discovery:
             provider: keycloak
@@ -38,6 +43,7 @@ spring:
             scope: [ discovery ]
             client-id: ${ADMIN_SERVICE_CLIENT_ID}
             client-secret: ${ADMIN_SERVICE_CLIENT_SECRET}
+
 management:
   health:
     livenessstate:
