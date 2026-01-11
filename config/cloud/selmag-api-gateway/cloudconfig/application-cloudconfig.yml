@@ -4,6 +4,8 @@ selmag:
 spring:
   cloud:
     gateway:
+      forwarded:
+        enabled: true
       routes:
         - id: catalogue-service-route
           uri: ${CATALOGUE_SERVICE_URI:lb://selmag-catalogue-service}
