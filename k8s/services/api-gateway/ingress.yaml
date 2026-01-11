@@ -3,6 +3,8 @@ kind: Ingress
 metadata:
   name: selmag-api-gateway-ingress
   namespace: selmag
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
   rules:
