@@ -11,8 +11,10 @@ spring:
             issuer-uri: ${KEYCLOAK_INTERNAL_ISSUER_URI:http://keycloak:8080/realms/selmag}
             user-name-attribute: preferred_username
 
-          # Для browser-login: authorization endpoint публичный,
-          # а token/jwk/userinfo берём через внутренний URL (внутри кластера/сети).
+          # Browser-login:
+          # - authorization-uri: PUBLIC (браузер открывает Keycloak снаружи)
+          # - token/jwk/userinfo: через тот же hostname, что и KC_HOSTNAME_URL
+          #   (в твоём k8s это внешний nip.io, и это сейчас принципиально важно, раз так работает)
           login:
             authorization-uri: ${KEYCLOAK_PUBLIC_URI:http://keycloak:8080}/realms/selmag/protocol/openid-connect/auth
             token-uri: ${KC_HOSTNAME_URL:http://keycloak:8080}/realms/selmag/protocol/openid-connect/token
@@ -24,7 +26,8 @@ spring:
           keycloak:
             provider: keycloak
             authorization-grant-type: client_credentials
-            scope: [ metrics ]
+            scope:
+              - metrics
             client-id: ${ADMIN_SERVICE_CLIENT_ID}
             client-secret: ${ADMIN_SERVICE_CLIENT_SECRET}
 
@@ -32,7 +35,9 @@ spring:
           login:
             provider: login
             authorization-grant-type: authorization_code
-            scope: [ metrics, openid ]
+            scope:
+              - metrics
+              - openid
             client-id: ${ADMIN_SERVICE_CLIENT_ID}
             client-secret: ${ADMIN_SERVICE_CLIENT_SECRET}
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
@@ -40,7 +45,8 @@ spring:
           discovery:
             provider: keycloak
             authorization-grant-type: client_credentials
-            scope: [ discovery ]
+            scope:
+              - discovery
             client-id: ${ADMIN_SERVICE_CLIENT_ID}
             client-secret: ${ADMIN_SERVICE_CLIENT_SECRET}
 
@@ -69,3 +75,6 @@ eureka:
       defaultZone: ${EUREKA_DEFAULTZONE:http://eureka-server:8761/eureka/}
     registryFetchIntervalSeconds: 20
     register-with-eureka: false
+
+server:
+  forward-headers-strategy: framework
