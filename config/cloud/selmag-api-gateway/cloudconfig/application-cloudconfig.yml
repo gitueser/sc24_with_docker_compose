@@ -6,6 +6,10 @@ spring:
     gateway:
       forwarded:
         enabled: true
+
+      default-filters:
+        - PreserveHostHeader
+
       routes:
         - id: catalogue-service-route
           uri: ${CATALOGUE_SERVICE_URI:lb://selmag-catalogue-service}
