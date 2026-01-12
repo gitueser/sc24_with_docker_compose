@@ -1,3 +1,5 @@
+server:
+  forward-headers-strategy: framework
 selmag:
   services:
     catalogue:
