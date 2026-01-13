@@ -29,7 +29,7 @@ spec:
                 name: selmag-secret
           env:
             - name: SPRING_PROFILES_ACTIVE
-              value: "cloudconfig"
+              value: "cloudconfig, observability"
             - name: SERVER_PORT
               valueFrom:
                 configMapKeyRef:

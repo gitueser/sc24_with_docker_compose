@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: selmag-grafana-svc
+  namespace: selmag
+spec:
+  selector:
+    app: selmag-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

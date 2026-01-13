@@ -1,1 +1,18 @@
-# опционально: можно не открывать наружу и ходить через port-forward
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: selmag-grafana-ingress
+  namespace: selmag
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: grafana.selm.ag.192.168.49.2.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: selmag-grafana-svc
+                port:
+                  name: http

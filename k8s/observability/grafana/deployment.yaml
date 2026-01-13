@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: selmag-grafana-deployment
+  namespace: selmag
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: selmag-grafana
+  template:
+    metadata:
+      labels:
+        app: selmag-grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.2.4
+          ports:
+            - name: http
+              containerPort: 3000
+          volumeMounts:
+            - name: grafana-datasources
+              mountPath: /etc/grafana/provisioning/datasources
+      volumes:
+        - name: grafana-datasources
+          configMap:
+            name: selmag-grafana-datasources

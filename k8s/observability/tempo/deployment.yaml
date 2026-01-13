@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: selmag-tempo-deployment
+  namespace: selmag
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: selmag-tempo
+  template:
+    metadata:
+      labels:
+        app: selmag-tempo
+    spec:
+      containers:
+        - name: tempo
+          image: grafana/tempo:2.3.1
+          args: ["-config.file=/etc/tempo/tempo.yaml"]
+          ports:
+            - name: http
+              containerPort: 3200
+            - name: zipkin
+              containerPort: 9411
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+          volumeMounts:
+            - name: tempo-config
+              mountPath: /etc/tempo
+            - name: tempo-data
+              mountPath: /tmp/tempo
+      volumes:
+        - name: tempo-config
+          configMap:
+            name: selmag-tempo-config
+        - name: tempo-data
+          emptyDir: {}

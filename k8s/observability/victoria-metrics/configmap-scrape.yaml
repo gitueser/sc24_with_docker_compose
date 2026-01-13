@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: selmag-vm-promscrape
+  namespace: selmag
+data:
+  promscrape.yaml: |
+    scrape_configs:
+      - job_name: selmag-admin-service-job
+        static_configs:
+          - targets: ["selmag-admin-server-svc:%{ADMIN_SERVER_PORT_INTERNAL}"]
+            labels:
+              application: selmag-admin-service
+        metrics_path: /actuator/prometheus
+        oauth2:
+          client_id: %{VICTORIA_METRICS_CLIENT_ID}
+          client_secret: %{VICTORIA_METRICS_CLIENT_SECRET}
+          token_url: %{KEYCLOAK_METRICS_TOKEN_URL}
+          scopes: [metrics]
+          endpoint_params:
+            grant_type: client_credentials
+
+      - job_name: selmag-api-gateway-job
+        static_configs:
+          - targets: ["selmag-api-gateway-svc:%{API_GATEWAY_PORT_INTERNAL}"]
+            labels:
+              application: selmag-api-gateway
+        metrics_path: /actuator/prometheus
+        oauth2:
+          client_id: %{VICTORIA_METRICS_CLIENT_ID}
+          client_secret: %{VICTORIA_METRICS_CLIENT_SECRET}
+          token_url: %{KEYCLOAK_METRICS_TOKEN_URL}
+          scopes: [metrics]
+          endpoint_params:
+            grant_type: client_credentials
+
+      - job_name: selmag-catalogue-service-job
+        static_configs:
+          - targets: ["selmag-catalogue-service-svc:%{CATALOGUE_SERVICE_PORT_INTERNAL}"]
+            labels:
+              application: selmag-catalogue-service
+        metrics_path: /actuator/prometheus
+        oauth2:
+          client_id: %{VICTORIA_METRICS_CLIENT_ID}
+          client_secret: %{VICTORIA_METRICS_CLIENT_SECRET}
+          token_url: %{KEYCLOAK_METRICS_TOKEN_URL}
+          scopes: [metrics]
+          endpoint_params:
+            grant_type: client_credentials
+
+      - job_name: selmag-feedback-service-job
+        static_configs:
+          - targets: ["selmag-feedback-service-svc:%{FEEDBACK_SERVICE_PORT_INTERNAL}"]
+            labels:
+              application: selmag-feedback-service
+        metrics_path: /actuator/prometheus
+        oauth2:
+          client_id: %{VICTORIA_METRICS_CLIENT_ID}
+          client_secret: %{VICTORIA_METRICS_CLIENT_SECRET}
+          token_url: %{KEYCLOAK_METRICS_TOKEN_URL}
+          scopes: [metrics]
+          endpoint_params:
+            grant_type: client_credentials
+
+      - job_name: selmag-customer-app-job
+        static_configs:
+          - targets: ["selmag-customer-app-svc:%{CUSTOMER_APP_PORT_INTERNAL}"]
+            labels:
+              application: selmag-customer-app
+        metrics_path: /actuator/prometheus
+        oauth2:
+          client_id: %{VICTORIA_METRICS_CLIENT_ID}
+          client_secret: %{VICTORIA_METRICS_CLIENT_SECRET}
+          token_url: %{KEYCLOAK_METRICS_TOKEN_URL}
+          scopes: [metrics]
+          endpoint_params:
+            grant_type: client_credentials
+
+      - job_name: selmag-manager-app-job
+        static_configs:
+          - targets: ["selmag-manager-app-svc:%{MANAGER_APP_PORT_INTERNAL}"]
+            labels:
+              application: selmag-manager-app
+        metrics_path: /actuator/prometheus
+        oauth2:
+          client_id: %{VICTORIA_METRICS_CLIENT_ID}
+          client_secret: %{VICTORIA_METRICS_CLIENT_SECRET}
+          token_url: %{KEYCLOAK_METRICS_TOKEN_URL}
+          scopes: [metrics]
+          endpoint_params:
+            grant_type: client_credentials

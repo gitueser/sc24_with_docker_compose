@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: selmag-tempo-svc
+  namespace: selmag
+spec:
+  selector:
+    app: selmag-tempo
+  ports:
+    - name: http
+      port: 3200
+      targetPort: http
+    - name: zipkin
+      port: 9411
+      targetPort: zipkin
+    - name: otlp-grpc
+      port: 4317
+      targetPort: otlp-grpc
+    - name: otlp-http
+      port: 4318
+      targetPort: otlp-http

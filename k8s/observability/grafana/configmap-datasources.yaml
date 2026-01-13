@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: selmag-grafana-datasources
+  namespace: selmag
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: VictoriaMetrics
+        type: prometheus
+        access: proxy
+        url: http://selmag-victoria-metrics-svc:8428
+        isDefault: true
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://selmag-loki-svc:3100
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://selmag-tempo-svc:3200
