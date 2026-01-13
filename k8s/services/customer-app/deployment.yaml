@@ -24,9 +24,8 @@ spec:
               containerPort: 8083
           env:
             - name: SPRING_PROFILES_ACTIVE
-              value: "cloudconfig"
-            # - name: SPRING_PROFILES_ACTIVE
-            #   value: "cloudconfig,observability"
+#              value: "cloudconfig"
+              value: "cloudconfig,observability"
             - name: SERVER_PORT
               value: "8083"
           envFrom:
