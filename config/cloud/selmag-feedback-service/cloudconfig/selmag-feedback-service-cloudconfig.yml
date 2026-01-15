@@ -10,7 +10,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_INTERNAL_ISSUER_URI:http://keycloak:8080/realms/selmag}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/selmag}
       client:
         registration:
           keycloak:
@@ -28,7 +28,7 @@ spring:
               - discovery
         provider:
           keycloak:
-            issuer-uri: ${KEYCLOAK_INTERNAL_ISSUER_URI:http://keycloak:8080/realms/selmag}
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/selmag}
 springdoc:
   swagger-ui:
     oauth:

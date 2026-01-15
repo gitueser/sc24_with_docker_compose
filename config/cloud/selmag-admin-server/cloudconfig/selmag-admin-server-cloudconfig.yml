@@ -3,12 +3,12 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_INTERNAL_ISSUER_URI:http://keycloak:8080/realms/selmag}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/selmag}
 
       client:
         provider:
           keycloak:
-            issuer-uri: ${KEYCLOAK_INTERNAL_ISSUER_URI:http://keycloak:8080/realms/selmag}
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/selmag}
             user-name-attribute: preferred_username
 
           # Browser-login:
