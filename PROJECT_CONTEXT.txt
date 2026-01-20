@@ -1,0 +1,190 @@
+📌 СВОДКА ПРОЕКТА SELMAG (АКТУАЛЬНОЕ СОСТОЯНИЕ)
+
+1. Среда выполнения и ограничения
+
+Хост и виртуализация:
+* Хостовая ОС: Windows
+* Контейнеризация: Docker Desktop
+* Linux-окружение: WSL2 (Ubuntu)
+* Kubernetes: minikube (запущен внутри Docker Desktop)
+* Рабочая консоль: Ubuntu в WSL2
+
+Почему так устроено:
+* Разработка ведётся на Windows, но:
+	* Kubernetes и большинство tooling (kubectl, helm, minikube) используются из Linux.
+* minikube tunnel --bind-address=0.0.0.0 используется, чтобы:
+	* Ingress / LoadBalancer были доступны из Windows браузера, а не только из WSL.
+* DNS-резолвинг и ingress тестируются локально, без внешнего облака.
+
+2. Docker Registry
+
+Локальный registry
+Запущен отдельным контейнером:
+
+docker run -d \
+  --restart=always \
+  --name selmag-registry \
+  -p 5000:5000 \
+  -e REGISTRY_STORAGE_DELETE_ENABLED=true \
+  -v selmag-registry-data:/var/lib/registry \
+  registry:2
+
+Назначение:
+* Хранение всех собственных образов проекта.
+* Используется Kubernetes (image: host.docker.internal:5000/...).
+
+Содержимое registry:
+
+{
+  "repositories": [
+    "selmag/admin-server",
+    "selmag/api-gateway",
+    "selmag/catalogue-service",
+    "selmag/config-server",
+    "selmag/customer-app",
+    "selmag/eureka-server",
+    "selmag/feedback-service",
+    "selmag/keycloak",
+    "selmag/manager-app",
+    "selmag/mongo",
+    "selmag/postgres"
+  ]
+}
+
+
+Docker Desktop (Windows)
+
+Запущены контейнеры:
+* minikube (служебные контейнеры Kubernetes)
+* selmag-registry
+
+
+3. Общая архитектура приложения
+
+Тип архитектуры^
+* Spring Boot + Spring Cloud
+* Микросервисы
+* Центральная аутентификация через Keycloak
+* Внешний доступ через Spring Cloud Gateway
+* Discovery через Eureka
+* Конфигурация через Spring Cloud Config Server
+
+Кластеры и namespace:
+* Kubernetes namespace: selmag
+* Все сервисы развернуты внутри него.
+
+
+4. DNS, Ingress и доступ из Windows
+
+nip.io
+Используется nip.io для локальных доменов вида:
+<service>.<subdomain>.selm.ag.<minikube-ip>.nip.io
+
+Пример:
+manager.selm.ag.192.168.49.2.nip.io
+
+Windows hosts
+В C:\Windows\System32\drivers\etc\hosts:
+
+<WSL_IP> keycloak.selm.ag.192.168.49.2.nip.io
+<WSL_IP> manager.selm.ag.192.168.49.2.nip.io
+<WSL_IP> customer.selm.ag.192.168.49.2.nip.io
+<WSL_IP> catalogue.api.selm.ag.192.168.49.2.nip.io
+<WSL_IP> feedback.api.selm.ag.192.168.49.2.nip.io
+...
+
+ingress-nginx:
+* ingress-nginx-controller Service переведён в LoadBalancer
+* Используется minikube tunnel
+* Весь внешний HTTP-трафик заходит через ingress-nginx
+
+
+5. CoreDNS (важный архитектурный момент)
+
+Зачем:
+* Один и тот же внешний hostname используется:
+	* и браузером (Windows),
+	* и сервисами внутри кластера.
+* Issuer Keycloak всегда внешний, без split-brain.
+
+Реализация
+В kube-system/coredns:
+* rewrite name exact <external-host> ingress-nginx-controller.ingress-nginx.svc.cluster.local
+Результат:
+* Внутри кластера запросы не выходят наружу, а идут в ingress-nginx.
+* Снаружи (Windows) — через tunnel.
+
+
+6. Общие Kubernetes ресурсы
+
+ConfigMap и Secret:
+* Несекретные настройки:
+kubectl create configmap selmag-config \
+  --from-env-file=k8s/shared/.env.config \
+  -n selmag
+
+* Секреты:
+kubectl create secret generic selmag-secret \
+  --from-env-file=k8s/shared/.env.secret \
+  -n selmag
+
+* Realm Keycloak:
+kubectl create secret generic selmag-keycloak-realm \
+  --from-file=selmag-minikube.json=config/keycloak/import/selmag-minikube.json \
+  -n selmag
+
+
+Все сервисы используют:
+envFrom:
+  - configMapRef:
+      name: selmag-config
+  - secretRef:
+      name: selmag-secret
+
+
+7. Сервисы (кратко)
+
+infrastructure:
+* keycloak
+* config-server
+* eureka-server
+* admin-server
+* mongo
+* postgres
+
+business / ui:
+* catalogue-service
+* feedback-service
+* manager-app
+* customer-app
+* api-gateway
+
+
+8. API Gateway — ключевая точка входа
+
+Почему manager-app и customer-app открываются без ingress
+Потому что:
+* Ingress существует ТОЛЬКО для api-gateway
+* Ingress rules:
+	1) manager.* → api-gateway
+	2) customer.* → api-gateway
+* А уже Spring Cloud Gateway маршрутизирует дальше по Host header.
+
+Ingress (фактически edge всей системы):
+catalogue.api.* → api-gateway → catalogue-service
+feedback.api.*  → api-gateway → feedback-service
+manager.*       → api-gateway → manager-app
+customer.*      → api-gateway → customer-app
+
+
+9. Keycloak (общий принцип)
+Для каждого сервиса:
+* отдельный client
+* либо:
+	* authorization_code (UI)
+	* либо client_credentials (service-to-service)
+* scopes:
+	* business (view_catalogue, edit_catalogue)
+	* infra (metrics_server, discovery)
+* issuer всегда внешний:
+http://keycloak.selm.ag.192.168.49.2.nip.io/realms/selmag
