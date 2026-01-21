@@ -8,7 +8,7 @@ spring:
           uri: https://github.com/gitueser/sc24_with_docker_compose
 #          uri: https://github.com/alex-kosarev/sc24-confg.git
           clone-on-start: true
-          default-label: kubernetes-test
+          default-label: ${CONFIG_GIT_LABEL:kubernetes-test}
 #          default-label: master
           search-paths:
             - 'config/cloud/{application}/{profile}'

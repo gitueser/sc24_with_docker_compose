@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.deployment.name }}-deployment
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "config-server.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.deployment.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.deployment.name }}
+    spec:
+      containers:
+        - name: {{ .Values.deployment.name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+
+          envFrom:
+            - configMapRef:
+                name: selmag-config
+            - secretRef:
+                name: selmag-secret
+
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "git"
+
+            - name: SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: CONFIG_SERVER_PORT_INTERNAL
+
+            - name: CONFIG_SERVER_SECURITY_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: CONFIG_SERVER_SECURITY_USERNAME
+
+            - name: CONFIG_GIT_LABEL
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: CONFIG_GIT_LABEL
+
+            - name: CONFIG_SERVER_SECURITY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: selmag-secret
+                  key: CONFIG_SERVER_SECURITY_PASSWORD
+
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >
+                  curl -fsS
+                  -u "$CONFIG_SERVER_SECURITY_USERNAME:$CONFIG_SERVER_SECURITY_PASSWORD"
+                  "http://127.0.0.1:$SERVER_PORT/actuator/health"
+                  >/dev/null
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readinessPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readinessFailureThreshold }}
+
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >
+                  curl -fsS
+                  -u "$CONFIG_SERVER_SECURITY_USERNAME:$CONFIG_SERVER_SECURITY_PASSWORD"
+                  "http://127.0.0.1:$SERVER_PORT/actuator/health"
+                  >/dev/null
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.livenessPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.livenessFailureThreshold }}

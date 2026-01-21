@@ -15,3 +15,6 @@ dependencies:
   - name: mongo-feedback
     version: 0.1.0
     repository: "file://charts/mongo-feedback"
+  - name: config-server
+    version: 0.1.0
+    repository: "file://charts/config-server"

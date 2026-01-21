@@ -8,5 +8,8 @@ dependencies:
 - name: mongo-feedback
   repository: file://charts/mongo-feedback
   version: 0.1.0
-digest: sha256:4bc93a6b9bb6f41abd4a98718dd0c633b2052c1462032e7229c76a36417f82c7
-generated: "2026-01-21T22:39:18.940423401+01:00"
+- name: config-server
+  repository: file://charts/config-server
+  version: 0.1.0
+digest: sha256:ce9169c36879be53c52ba7b49f9f3b55e77a0a49eca8ad0a9a006356e9f305c3
+generated: "2026-01-21T23:55:49.491791043+01:00"

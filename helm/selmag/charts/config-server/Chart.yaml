@@ -1,0 +1,6 @@
+apiVersion: v2
+name: config-server
+description: Selmag Config Server (Spring Cloud Config) for k8s
+type: application
+version: 0.1.0
+appVersion: "24.1.1"

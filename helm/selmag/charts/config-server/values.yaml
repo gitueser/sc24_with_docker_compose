@@ -1,0 +1,22 @@
+enabled: true
+
+image:
+  repository: host.docker.internal:5000/selmag/config-server
+  tag: "24.1.1"
+  pullPolicy: Always
+
+deployment:
+  name: selmag-config-server
+  replicas: 1
+
+service:
+  name: selmag-config-server-svc
+  port: 8888
+
+probes:
+  initialDelaySeconds: 60
+  readinessPeriodSeconds: 10
+  livenessPeriodSeconds: 20
+  timeoutSeconds: 3
+  readinessFailureThreshold: 12
+  livenessFailureThreshold: 6
