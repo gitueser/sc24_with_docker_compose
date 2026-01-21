@@ -1,0 +1,34 @@
+enabled: true
+
+image:
+  repository: host.docker.internal:5000/selmag/mongo
+  tag: "7"
+  pullPolicy: IfNotPresent
+
+service:
+  name: selmag-feedback-db-svc
+  port: 27017
+
+pvc:
+  name: selmag-feedback-db-pvc
+  storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+
+statefulset:
+  name: selmag-feedback-db
+  replicas: 1
+  terminationGracePeriodSeconds: 30
+  dataMountPath: /data/db
+
+probes:
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 12
+  liveness:
+    initialDelaySeconds: 30
+    periodSeconds: 20
+    timeoutSeconds: 3
+    failureThreshold: 6

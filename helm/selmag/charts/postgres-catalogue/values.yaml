@@ -1,0 +1,28 @@
+enabled: true
+
+image:
+  repository: host.docker.internal:5000/selmag/postgres
+  tag: "16"
+  pullPolicy: IfNotPresent
+
+service:
+  name: selmag-catalogue-db-svc
+  port: 5432
+
+statefulset:
+  name: selmag-catalogue-db
+
+persistence:
+  enabled: true
+  pvcName: selmag-catalogue-db-pvc
+  size: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  # storageClassName: ""  # если нужно явно
+
+env:
+  configMapName: selmag-config
+  secretName: selmag-secret
+  userKey: CATALOGUE_DB_USER
+  dbKey: CATALOGUE_DB_NAME
+  passwordKey: CATALOGUE_DB_PASSWORD

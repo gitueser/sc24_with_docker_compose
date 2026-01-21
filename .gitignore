@@ -41,3 +41,6 @@ build/
 #In a real project, uncomment them, as these files should not be included in Git
 #.env
 #config/keycloak/import/selmag.json
+
+# Helm packaged charts
+helm/**/charts/*.tgz

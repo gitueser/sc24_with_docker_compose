@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keycloak.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "keycloak.fullname" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "keycloak.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "keycloak.fullname" . }}
+    spec:
+      containers:
+        - name: keycloak
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+
+          # ВАЖНО: берём env из selmag-config / selmag-secret,
+          # которые уже создаёт umbrella chart на уровне namespace.
+          envFrom:
+            - configMapRef:
+                name: selmag-config
+            - secretRef:
+                name: selmag-secret
+
+          # start-dev + import
+          args:
+            - "start-dev"
+            - "--import-realm"
+
+          volumeMounts:
+            - name: realm-import
+              mountPath: {{ .Values.realm.mountPath }}
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 12
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+      volumes:
+        - name: realm-import
+          secret:
+            secretName: {{ .Values.realm.secretName }}

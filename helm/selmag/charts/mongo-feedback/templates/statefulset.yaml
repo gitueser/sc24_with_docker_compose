@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.statefulset.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mongo-feedback.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ .Values.service.name }}
+  replicas: {{ .Values.statefulset.replicas }}
+  selector:
+    matchLabels:
+      {{- include "mongo-feedback.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "mongo-feedback.labels" . | nindent 8 }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.statefulset.terminationGracePeriodSeconds }}
+      containers:
+        - name: mongo
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "--bind_ip_all"
+            - "--quiet"
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: mongodb
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.statefulset.dataMountPath }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Values.pvc.name }}

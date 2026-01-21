@@ -1,0 +1,6 @@
+apiVersion: v2
+name: postgres-catalogue
+description: Postgres (catalogue-db) for selmag
+type: application
+version: 0.1.0
+appVersion: "16"

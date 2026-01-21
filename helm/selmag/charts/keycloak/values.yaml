@@ -1,0 +1,25 @@
+enabled: true
+
+image:
+  repository: host.docker.internal:5000/selmag/keycloak
+  tag: "23.0.7"
+  pullPolicy: Always
+
+service:
+  name: selmag-keycloak-svc
+  port: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  host: keycloak.selm.ag.192.168.49.2.nip.io
+  annotations:
+    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
+  path: /
+  pathType: Prefix
+
+realm:
+  enabled: true
+  secretName: selmag-keycloak-realm
+  fileName: selmag-minikube.json
+  mountPath: /opt/keycloak/data/import

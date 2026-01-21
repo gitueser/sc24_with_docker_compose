@@ -1,0 +1,12 @@
+dependencies:
+- name: keycloak
+  repository: file://charts/keycloak
+  version: 0.1.0
+- name: postgres-catalogue
+  repository: file://charts/postgres-catalogue
+  version: 0.1.0
+- name: mongo-feedback
+  repository: file://charts/mongo-feedback
+  version: 0.1.0
+digest: sha256:4bc93a6b9bb6f41abd4a98718dd0c633b2052c1462032e7229c76a36417f82c7
+generated: "2026-01-21T22:39:18.940423401+01:00"
