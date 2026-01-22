@@ -1,0 +1,29 @@
+image:
+  repository: host.docker.internal:5000/selmag/feedback-service
+  tag: "24.1.1"
+  pullPolicy: Always
+
+replicaCount: 1
+
+service:
+  name: selmag-feedback-service-svc
+  port: 8084
+  targetPortName: http
+
+deployment:
+  name: selmag-feedback-service-deployment
+  appLabel: selmag-feedback-service
+
+env:
+  springProfilesActive: "cloudconfig"
+  serverPort: "8084"
+
+probes:
+  initialDelaySeconds: 60
+  readinessPath: /actuator/health/readiness
+  livenessPath: /actuator/health/liveness
+  readinessPeriodSeconds: 10
+  livenessPeriodSeconds: 20
+  timeoutSeconds: 3
+  readinessFailureThreshold: 12
+  livenessFailureThreshold: 6

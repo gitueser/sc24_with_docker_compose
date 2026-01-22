@@ -29,3 +29,7 @@ dependencies:
     repository: file://charts/catalogue-service
     version: 0.1.0
     condition: catalogue-service.enabled
+  - name: feedback-service
+    version: 0.1.0
+    repository: file://charts/feedback-service
+    condition: feedback-service.enabled

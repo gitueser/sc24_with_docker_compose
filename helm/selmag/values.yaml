@@ -28,3 +28,6 @@ admin-server:
 
 catalogue-service:
   enabled: true
+
+feedback-service:
+  enabled: true

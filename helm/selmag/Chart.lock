@@ -20,5 +20,8 @@ dependencies:
 - name: catalogue-service
   repository: file://charts/catalogue-service
   version: 0.1.0
-digest: sha256:66216332f3bf3773aa26647a2ddde15d0cf9f21636d75135d45caa1a4e9754c3
-generated: "2026-01-22T02:39:19.790304715+01:00"
+- name: feedback-service
+  repository: file://charts/feedback-service
+  version: 0.1.0
+digest: sha256:50ba3bdebc2f2d3e724fe7b3c053059e83d142536dd888b752a7262f88189be7
+generated: "2026-01-22T03:36:48.439866595+01:00"
