@@ -1,0 +1,19 @@
+enabled: true
+
+image:
+  repository: host.docker.internal:5000/selmag/admin-server
+  tag: "24.1.1"
+  pullPolicy: Always
+
+deployment:
+  name: selmag-admin-server-deployment
+  replicas: 1
+
+service:
+  name: selmag-admin-server-svc
+  port: 8085
+
+env:
+  springProfilesActive: "cloudconfig"
+#  springProfilesActive: "cloudconfig,observability"
+  serverPort: "8085"

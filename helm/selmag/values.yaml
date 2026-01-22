@@ -22,3 +22,9 @@ bootstrap:
 
   secret:
     enabled: true
+
+admin-server:
+  enabled: true
+
+catalogue-service:
+  enabled: true

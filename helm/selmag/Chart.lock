@@ -14,5 +14,11 @@ dependencies:
 - name: eureka-server
   repository: file://charts/eureka-server
   version: 0.1.0
-digest: sha256:d31ef2b36f6aded26490947aa732e543e5e16b816ba23bf104e92e94fe5f3daf
-generated: "2026-01-22T01:29:21.901303603+01:00"
+- name: admin-server
+  repository: file://charts/admin-server
+  version: 0.1.0
+- name: catalogue-service
+  repository: file://charts/catalogue-service
+  version: 0.1.0
+digest: sha256:66216332f3bf3773aa26647a2ddde15d0cf9f21636d75135d45caa1a4e9754c3
+generated: "2026-01-22T02:39:19.790304715+01:00"

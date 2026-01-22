@@ -1,0 +1,30 @@
+image:
+  repository: host.docker.internal:5000/selmag/catalogue-service
+  tag: "24.1.1"
+  pullPolicy: Always
+
+replicaCount: 3
+
+service:
+  name: selmag-catalogue-service-svc
+  port: 8081
+  targetPortName: http
+
+deployment:
+  name: selmag-catalogue-service-deployment
+  appLabel: selmag-catalogue-service
+
+env:
+  springProfilesActive: "cloudconfig"
+#  springProfilesActive: "cloudconfig,observability"
+  serverPort: "8081"
+
+probes:
+  initialDelaySeconds: 60
+  readinessPath: /actuator/health/readiness
+  livenessPath: /actuator/health/liveness
+  readinessPeriodSeconds: 10
+  livenessPeriodSeconds: 20
+  timeoutSeconds: 3
+  readinessFailureThreshold: 12
+  livenessFailureThreshold: 6

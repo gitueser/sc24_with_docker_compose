@@ -21,3 +21,11 @@ dependencies:
   - name: eureka-server
     version: 0.1.0
     repository: "file://charts/eureka-server"
+  - name: admin-server
+    version: 0.1.0
+    repository: file://charts/admin-server
+    condition: admin-server.enabled
+  - name: catalogue-service
+    repository: file://charts/catalogue-service
+    version: 0.1.0
+    condition: catalogue-service.enabled
