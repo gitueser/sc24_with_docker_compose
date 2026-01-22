@@ -1,0 +1,23 @@
+enabled: true
+
+image:
+  repository: host.docker.internal:5000/selmag/eureka-server
+  tag: "24.1.1"
+  pullPolicy: IfNotPresent   # можно Always, но IfNotPresent обычно спокойнее в minikube
+
+deployment:
+  name: selmag-eureka-server-deployment
+  replicas: 1
+
+service:
+  name: selmag-eureka-server-svc
+  port: 8761
+
+ingress:
+  enabled: true
+  className: nginx
+  host: eureka.selm.ag.192.168.49.2.nip.io
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+  path: /
+  pathType: Prefix

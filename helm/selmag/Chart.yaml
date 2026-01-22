@@ -18,3 +18,6 @@ dependencies:
   - name: config-server
     version: 0.1.0
     repository: "file://charts/config-server"
+  - name: eureka-server
+    version: 0.1.0
+    repository: "file://charts/eureka-server"

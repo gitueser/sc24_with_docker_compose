@@ -11,5 +11,8 @@ dependencies:
 - name: config-server
   repository: file://charts/config-server
   version: 0.1.0
-digest: sha256:ce9169c36879be53c52ba7b49f9f3b55e77a0a49eca8ad0a9a006356e9f305c3
-generated: "2026-01-21T23:55:49.491791043+01:00"
+- name: eureka-server
+  repository: file://charts/eureka-server
+  version: 0.1.0
+digest: sha256:d31ef2b36f6aded26490947aa732e543e5e16b816ba23bf104e92e94fe5f3daf
+generated: "2026-01-22T01:29:21.901303603+01:00"

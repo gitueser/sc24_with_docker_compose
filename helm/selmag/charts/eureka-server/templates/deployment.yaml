@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.deployment.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: selmag-eureka-server
+spec:
+  replicas: {{ .Values.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: selmag-eureka-server
+  template:
+    metadata:
+      labels:
+        app: selmag-eureka-server
+    spec:
+      containers:
+        - name: selmag-eureka-server
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+
+          envFrom:
+            - configMapRef:
+                name: selmag-config
+            - secretRef:
+                name: selmag-secret
+
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "cloudconfig"
+
+            - name: SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: EUREKA_SERVER_PORT_INTERNAL
+
+            - name: EUREKA_HOSTNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: EUREKA_HOSTNAME
+
+            - name: CONFIG_SERVER_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: CONFIG_SERVER_URI
+
+            - name: CONFIG_SERVER_SECURITY_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: CONFIG_SERVER_SECURITY_USERNAME
+
+            - name: CONFIG_SERVER_SECURITY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: selmag-secret
+                  key: CONFIG_SERVER_SECURITY_PASSWORD
+
+            - name: EUREKA_SERVER_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: selmag-config
+                  key: EUREKA_SERVER_CLIENT_ID
+
+            - name: EUREKA_SERVER_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: selmag-secret
+                  key: EUREKA_SERVER_CLIENT_SECRET
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 12
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
