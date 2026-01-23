@@ -1,0 +1,53 @@
+image:
+  repository: host.docker.internal:5000/selmag/api-gateway
+  tag: "24.1.1"
+  pullPolicy: Always
+
+replicaCount: 1
+
+service:
+  name: selmag-api-gateway-svc
+  port: 8086
+  targetPortName: http
+
+deployment:
+  name: selmag-api-gateway-deployment
+  appLabel: selmag-api-gateway
+
+env:
+  springProfilesActive: "cloudconfig"
+#  springProfilesActive: "cloudconfig,observability"
+  serverPort: "8086"
+
+probes:
+  initialDelaySeconds: 60
+  readinessPath: /actuator/health/readiness
+  livenessPath: /actuator/health/liveness
+  readinessPeriodSeconds: 10
+  livenessPeriodSeconds: 20
+  timeoutSeconds: 3
+  readinessFailureThreshold: 12
+  livenessFailureThreshold: 6
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
+  hosts:
+    - host: catalogue.api.selm.ag.192.168.49.2.nip.io
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: feedback.api.selm.ag.192.168.49.2.nip.io
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: manager.selm.ag.192.168.49.2.nip.io
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: customer.selm.ag.192.168.49.2.nip.io
+      paths:
+        - path: /
+          pathType: Prefix

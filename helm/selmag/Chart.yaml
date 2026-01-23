@@ -9,27 +9,49 @@ dependencies:
   - name: keycloak
     version: 0.1.0
     repository: "file://charts/keycloak"
+
   - name: postgres-catalogue
     version: 0.1.0
     repository: "file://charts/postgres-catalogue"
+
   - name: mongo-feedback
     version: 0.1.0
     repository: "file://charts/mongo-feedback"
+
   - name: config-server
     version: 0.1.0
     repository: "file://charts/config-server"
+
   - name: eureka-server
     version: 0.1.0
     repository: "file://charts/eureka-server"
+
   - name: admin-server
     version: 0.1.0
-    repository: file://charts/admin-server
+    repository: "file://charts/admin-server"
     condition: admin-server.enabled
+
   - name: catalogue-service
-    repository: file://charts/catalogue-service
+    repository: "file://charts/catalogue-service"
     version: 0.1.0
     condition: catalogue-service.enabled
+
   - name: feedback-service
     version: 0.1.0
-    repository: file://charts/feedback-service
+    repository: "file://charts/feedback-service"
     condition: feedback-service.enabled
+
+  - name: customer-app
+    version: 0.1.0
+    repository: "file://charts/customer-app"
+    condition: customer-app.enabled
+
+  - name: manager-app
+    version: 0.1.0
+    repository: "file://charts/manager-app"
+    condition: manager-app.enabled
+
+  - name: api-gateway
+    version: 0.1.0
+    repository: "file://charts/api-gateway"
+    condition: api-gateway.enabled

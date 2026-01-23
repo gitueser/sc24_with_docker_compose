@@ -1,23 +1,25 @@
+enabled: true
+
 image:
-  repository: host.docker.internal:5000/selmag/feedback-service
+  repository: host.docker.internal:5000/selmag/customer-app
   tag: "24.1.1"
   pullPolicy: Always
 
 replicaCount: 1
 
 service:
-  name: selmag-feedback-service-svc
-  port: 8084
+  name: selmag-customer-app-svc
+  port: 8083
   targetPortName: http
 
 deployment:
-  name: selmag-feedback-service-deployment
-  appLabel: selmag-feedback-service
+  name: selmag-customer-app-deployment
+  appLabel: selmag-customer-app
 
 env:
   springProfilesActive: "cloudconfig"
 #  springProfilesActive: "cloudconfig,observability"
-  serverPort: "8084"
+  serverPort: "8083"
 
 probes:
   initialDelaySeconds: 60

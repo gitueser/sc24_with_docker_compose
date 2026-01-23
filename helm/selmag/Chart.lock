@@ -23,5 +23,14 @@ dependencies:
 - name: feedback-service
   repository: file://charts/feedback-service
   version: 0.1.0
-digest: sha256:50ba3bdebc2f2d3e724fe7b3c053059e83d142536dd888b752a7262f88189be7
-generated: "2026-01-22T03:36:48.439866595+01:00"
+- name: customer-app
+  repository: file://charts/customer-app
+  version: 0.1.0
+- name: manager-app
+  repository: file://charts/manager-app
+  version: 0.1.0
+- name: api-gateway
+  repository: file://charts/api-gateway
+  version: 0.1.0
+digest: sha256:41617171241c5f9181ae9b5e04002656b86748f19c128dd51834ca50c28d53f3
+generated: "2026-01-23T15:59:24.893029154+01:00"

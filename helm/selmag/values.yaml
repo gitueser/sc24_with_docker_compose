@@ -31,3 +31,12 @@ catalogue-service:
 
 feedback-service:
   enabled: true
+
+customer-app:
+  enabled: true
+
+manager-app:
+  enabled: true
+
+api-gateway:
+  enabled: true
