@@ -1,17 +1,30 @@
-enabled: true
-
 image:
   repository: host.docker.internal:5000/selmag/config-server
   tag: "24.1.1"
   pullPolicy: Always
 
+replicaCount: 1
+
 deployment:
-  name: selmag-config-server
-  replicas: 1
+  name: selmag-config-server-deployment
+  appLabel: selmag-config-server
 
 service:
   name: selmag-config-server-svc
+  type: ClusterIP
   port: 8888
+  targetPortName: http
+
+containerPort: 8888
+
+env:
+  springProfilesActive: "git"
+
+envKeys:
+  serverPortKey: CONFIG_SERVER_PORT_INTERNAL
+  securityUsernameKey: CONFIG_SERVER_SECURITY_USERNAME
+  gitLabelKey: CONFIG_GIT_LABEL
+  securityPasswordKey: CONFIG_SERVER_SECURITY_PASSWORD
 
 probes:
   initialDelaySeconds: 60
@@ -20,3 +33,4 @@ probes:
   timeoutSeconds: 3
   readinessFailureThreshold: 12
   livenessFailureThreshold: 6
+  actuatorHealthPath: /actuator/health

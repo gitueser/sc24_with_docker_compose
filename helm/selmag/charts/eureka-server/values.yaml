@@ -1,20 +1,47 @@
-enabled: true
-
 image:
   repository: host.docker.internal:5000/selmag/eureka-server
   tag: "24.1.1"
-  pullPolicy: IfNotPresent   # можно Always, но IfNotPresent обычно спокойнее в minikube
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
 
 deployment:
   name: selmag-eureka-server-deployment
-  replicas: 1
+  appLabel: selmag-eureka-server
 
 service:
   name: selmag-eureka-server-svc
+  type: ClusterIP
   port: 8761
+  targetPortName: http
+
+containerPort: 8761
+
+env:
+  springProfilesActive: "cloudconfig"
+
+envKeys:
+  serverPortKey: EUREKA_SERVER_PORT_INTERNAL
+  hostnameKey: EUREKA_HOSTNAME
+  configServerUriKey: CONFIG_SERVER_URI
+  configServerUsernameKey: CONFIG_SERVER_SECURITY_USERNAME
+  configServerPasswordKey: CONFIG_SERVER_SECURITY_PASSWORD
+  eurekaClientIdKey: EUREKA_SERVER_CLIENT_ID
+  eurekaClientSecretKey: EUREKA_SERVER_CLIENT_SECRET
+
+probes:
+  initialDelaySeconds: 60
+  readinessPeriodSeconds: 10
+  livenessPeriodSeconds: 20
+  timeoutSeconds: 3
+  readinessFailureThreshold: 12
+  livenessFailureThreshold: 6
+  readinessPath: /actuator/health/readiness
+  livenessPath: /actuator/health/liveness
 
 ingress:
   enabled: true
+  name: selmag-eureka-server-ingress
   className: nginx
   host: eureka.selm.ag.192.168.49.2.nip.io
   annotations:

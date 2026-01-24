@@ -2,11 +2,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: selmag-keycloak-ingress
-  namespace: {{ .Release.Namespace }}
+  name: {{ .Values.ingress.name }}
   {{- with .Values.ingress.annotations }}
   annotations:
-  {{ toYaml . | nindent 4 }}
+  {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
@@ -20,5 +19,5 @@ spec:
               service:
                 name: {{ .Values.service.name }}
                 port:
-                  name: http
-  {{- end }}
+                  name: {{ .Values.service.targetPortName }}
+{{- end }}

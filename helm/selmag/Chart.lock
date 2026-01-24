@@ -32,5 +32,5 @@ dependencies:
 - name: api-gateway
   repository: file://charts/api-gateway
   version: 0.1.0
-digest: sha256:41617171241c5f9181ae9b5e04002656b86748f19c128dd51834ca50c28d53f3
-generated: "2026-01-23T15:59:24.893029154+01:00"
+digest: sha256:a7153420eef72376e1ef37df3834e91ea8f28f0f5bff55ae90ddf920b2a8af4b
+generated: "2026-01-23T19:08:55.199574578+01:00"

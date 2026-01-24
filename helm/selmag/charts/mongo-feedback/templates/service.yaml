@@ -2,14 +2,13 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Values.service.name }}
-  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "mongo-feedback.labels" . | nindent 4 }}
 spec:
-  type: ClusterIP
+  type: {{ .Values.service.type }}
   selector:
-    {{- include "mongo-feedback.labels" . | nindent 4 }}
+    {{- include "mongo-feedback.selectorLabels" . | nindent 4 }}
   ports:
-    - name: mongodb
+    - name: {{ .Values.service.targetPortName }}
       port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPortName }}

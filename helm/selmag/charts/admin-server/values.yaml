@@ -1,19 +1,33 @@
-enabled: true
-
 image:
   repository: host.docker.internal:5000/selmag/admin-server
   tag: "24.1.1"
   pullPolicy: Always
 
+replicaCount: 1
+
 deployment:
   name: selmag-admin-server-deployment
-  replicas: 1
+  appLabel: selmag-admin-server
 
 service:
   name: selmag-admin-server-svc
+  type: ClusterIP
   port: 8085
+  targetPortName: http
+
+containerPort: 8085
 
 env:
   springProfilesActive: "cloudconfig"
-#  springProfilesActive: "cloudconfig,observability"
+  # springProfilesActive: "cloudconfig,observability"
   serverPort: "8085"
+
+probes:
+  initialDelaySeconds: 60
+  readinessPath: /actuator/health/readiness
+  livenessPath: /actuator/health/liveness
+  readinessPeriodSeconds: 10
+  livenessPeriodSeconds: 20
+  timeoutSeconds: 3
+  readinessFailureThreshold: 12
+  livenessFailureThreshold: 6

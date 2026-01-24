@@ -1,10 +1,10 @@
-{{- if and .Values.enabled .Values.persistence.enabled }}
+{{- if .Values.persistence.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ .Values.persistence.pvcName }}
   labels:
-    app: {{ .Values.statefulset.name }}
+    {{- include "postgres-catalogue.labels" . | nindent 4 }}
 spec:
   accessModes:
 {{- toYaml .Values.persistence.accessModes | nindent 4 }}

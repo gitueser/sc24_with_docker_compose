@@ -5,18 +5,21 @@ image:
 
 replicaCount: 3
 
-service:
-  name: selmag-catalogue-service-svc
-  port: 8081
-  targetPortName: http
-
 deployment:
   name: selmag-catalogue-service-deployment
   appLabel: selmag-catalogue-service
 
+service:
+  name: selmag-catalogue-service-svc
+  type: ClusterIP
+  port: 8081
+  targetPortName: http
+
+containerPort: 8081
+
 env:
   springProfilesActive: "cloudconfig"
-#  springProfilesActive: "cloudconfig,observability"
+  # springProfilesActive: "cloudconfig,observability"
   serverPort: "8081"
 
 probes:

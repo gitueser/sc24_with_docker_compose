@@ -2,94 +2,93 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Values.deployment.name }}
-  namespace: {{ .Release.Namespace }}
   labels:
-    app: selmag-eureka-server
+    {{- include "eureka-server.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.deployment.replicas }}
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: selmag-eureka-server
+      {{- include "eureka-server.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: selmag-eureka-server
+        {{- include "eureka-server.selectorLabels" . | nindent 8 }}
     spec:
       containers:
-        - name: selmag-eureka-server
+        - name: {{ .Values.deployment.appLabel }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 
           ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
+            - name: {{ .Values.service.targetPortName }}
+              containerPort: {{ .Values.containerPort }}
 
           envFrom:
             - configMapRef:
-                name: selmag-config
+                name: {{ $.Values.global.configMapName }}
             - secretRef:
-                name: selmag-secret
+                name: {{ $.Values.global.secretName }}
 
           env:
             - name: SPRING_PROFILES_ACTIVE
-              value: "cloudconfig"
+              value: {{ .Values.env.springProfilesActive | quote }}
 
             - name: SERVER_PORT
               valueFrom:
                 configMapKeyRef:
-                  name: selmag-config
-                  key: EUREKA_SERVER_PORT_INTERNAL
+                  name: {{ $.Values.global.configMapName }}
+                  key: {{ .Values.envKeys.serverPortKey }}
 
             - name: EUREKA_HOSTNAME
               valueFrom:
                 configMapKeyRef:
-                  name: selmag-config
-                  key: EUREKA_HOSTNAME
+                  name: {{ $.Values.global.configMapName }}
+                  key: {{ .Values.envKeys.hostnameKey }}
 
             - name: CONFIG_SERVER_URI
               valueFrom:
                 configMapKeyRef:
-                  name: selmag-config
-                  key: CONFIG_SERVER_URI
+                  name: {{ $.Values.global.configMapName }}
+                  key: {{ .Values.envKeys.configServerUriKey }}
 
             - name: CONFIG_SERVER_SECURITY_USERNAME
               valueFrom:
                 configMapKeyRef:
-                  name: selmag-config
-                  key: CONFIG_SERVER_SECURITY_USERNAME
+                  name: {{ $.Values.global.configMapName }}
+                  key: {{ .Values.envKeys.configServerUsernameKey }}
 
             - name: CONFIG_SERVER_SECURITY_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: selmag-secret
-                  key: CONFIG_SERVER_SECURITY_PASSWORD
+                  name: {{ $.Values.global.secretName }}
+                  key: {{ .Values.envKeys.configServerPasswordKey }}
 
             - name: EUREKA_SERVER_CLIENT_ID
               valueFrom:
                 configMapKeyRef:
-                  name: selmag-config
-                  key: EUREKA_SERVER_CLIENT_ID
+                  name: {{ $.Values.global.configMapName }}
+                  key: {{ .Values.envKeys.eurekaClientIdKey }}
 
             - name: EUREKA_SERVER_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: selmag-secret
-                  key: EUREKA_SERVER_CLIENT_SECRET
+                  name: {{ $.Values.global.secretName }}
+                  key: {{ .Values.envKeys.eurekaClientSecretKey }}
 
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
-              port: http
-            initialDelaySeconds: 60
-            periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 12
+              path: {{ .Values.probes.readinessPath }}
+              port: {{ .Values.service.targetPortName }}
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readinessPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readinessFailureThreshold }}
 
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
-              port: http
-            initialDelaySeconds: 60
-            periodSeconds: 20
-            timeoutSeconds: 3
-            failureThreshold: 6
+              path: {{ .Values.probes.livenessPath }}
+              port: {{ .Values.service.targetPortName }}
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.livenessPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.livenessFailureThreshold }}

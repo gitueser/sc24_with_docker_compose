@@ -2,49 +2,53 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Values.deployment.name }}
-  namespace: {{ .Release.Namespace }}
   labels:
-    app: selmag-admin-server
+    {{- include "admin-server.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.deployment.replicas }}
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: selmag-admin-server
+      {{- include "admin-server.labels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: selmag-admin-server
+        {{- include "admin-server.labels" . | nindent 8 }}
     spec:
       containers:
-        - name: selmag-admin-server
-          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        - name: {{ .Values.deployment.appLabel }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+
           ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
+            - name: {{ .Values.service.targetPortName }}
+              containerPort: {{ .Values.containerPort }}
+
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: {{ .Values.env.springProfilesActive | quote }}
             - name: SERVER_PORT
               value: {{ .Values.env.serverPort | quote }}
+
           envFrom:
             - configMapRef:
-                name: selmag-config
+                name: {{ $.Values.global.configMapName }}
             - secretRef:
-                name: selmag-secret
+                name: {{ $.Values.global.secretName }}
+
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
-              port: http
-            initialDelaySeconds: 60
-            periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 12
+              path: {{ .Values.probes.readinessPath }}
+              port: {{ .Values.service.targetPortName }}
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readinessPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readinessFailureThreshold }}
+
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
-              port: http
-            initialDelaySeconds: 60
-            periodSeconds: 20
-            timeoutSeconds: 3
-            failureThreshold: 6
+              path: {{ .Values.probes.livenessPath }}
+              port: {{ .Values.service.targetPortName }}
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.livenessPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.livenessFailureThreshold }}

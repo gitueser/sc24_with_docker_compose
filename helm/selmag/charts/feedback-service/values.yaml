@@ -5,18 +5,21 @@ image:
 
 replicaCount: 1
 
-service:
-  name: selmag-feedback-service-svc
-  port: 8084
-  targetPortName: http
-
 deployment:
   name: selmag-feedback-service-deployment
   appLabel: selmag-feedback-service
 
+service:
+  name: selmag-feedback-service-svc
+  type: ClusterIP
+  port: 8084
+  targetPortName: http
+
+containerPort: 8084
+
 env:
   springProfilesActive: "cloudconfig"
-#  springProfilesActive: "cloudconfig,observability"
+  # springProfilesActive: "cloudconfig,observability"
   serverPort: "8084"
 
 probes:

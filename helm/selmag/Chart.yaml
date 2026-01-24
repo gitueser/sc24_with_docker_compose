@@ -9,22 +9,27 @@ dependencies:
   - name: keycloak
     version: 0.1.0
     repository: "file://charts/keycloak"
+    condition: keycloak.enabled
 
   - name: postgres-catalogue
     version: 0.1.0
     repository: "file://charts/postgres-catalogue"
+    condition: postgres-catalogue.enabled
 
   - name: mongo-feedback
     version: 0.1.0
     repository: "file://charts/mongo-feedback"
+    condition: mongo-feedback.enabled
 
   - name: config-server
     version: 0.1.0
     repository: "file://charts/config-server"
+    condition: config-server.enabled
 
   - name: eureka-server
     version: 0.1.0
     repository: "file://charts/eureka-server"
+    condition: eureka-server.enabled
 
   - name: admin-server
     version: 0.1.0

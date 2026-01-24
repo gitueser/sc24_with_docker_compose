@@ -3,46 +3,51 @@ kind: Deployment
 metadata:
   name: {{ .Values.deployment.name }}
   labels:
-    app: {{ .Values.deployment.appLabel }}
+    {{- include "customer-app.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ .Values.deployment.appLabel }}
+      {{- include "customer-app.labels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ .Values.deployment.appLabel }}
+        {{- include "customer-app.labels" . | nindent 8 }}
     spec:
       containers:
         - name: {{ .Values.deployment.appLabel }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+
           ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
+            - name: {{ .Values.service.targetPortName }}
+              containerPort: {{ .Values.containerPort }}
+
           env:
             - name: SPRING_PROFILES_ACTIVE
-              value: "{{ .Values.env.springProfilesActive }}"
+              value: {{ .Values.env.springProfilesActive | quote }}
             - name: SERVER_PORT
-              value: "{{ .Values.env.serverPort }}"
+              value: {{ .Values.env.serverPort | quote }}
+
           envFrom:
             - configMapRef:
-                name: {{ .Values.global.configMapName | default "selmag-config" }}
+                name: {{ $.Values.global.configMapName }}
             - secretRef:
-                name: {{ .Values.global.secretName | default "selmag-secret" }}
+                name: {{ $.Values.global.secretName }}
+
           readinessProbe:
             httpGet:
               path: {{ .Values.probes.readinessPath }}
-              port: http
+              port: {{ .Values.service.targetPortName }}
             initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.readinessPeriodSeconds }}
             timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
             failureThreshold: {{ .Values.probes.readinessFailureThreshold }}
+
           livenessProbe:
             httpGet:
               path: {{ .Values.probes.livenessPath }}
-              port: http
+              port: {{ .Values.service.targetPortName }}
             initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.livenessPeriodSeconds }}
             timeoutSeconds: {{ .Values.probes.timeoutSeconds }}

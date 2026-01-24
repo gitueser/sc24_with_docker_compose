@@ -5,18 +5,21 @@ image:
 
 replicaCount: 1
 
-service:
-  name: selmag-manager-app-svc
-  port: 8087
-  targetPortName: http
-
 deployment:
   name: selmag-manager-app-deployment
   appLabel: selmag-manager-app
 
+service:
+  name: selmag-manager-app-svc
+  type: ClusterIP
+  port: 8087
+  targetPortName: http
+
+containerPort: 8087
+
 env:
   springProfilesActive: "cloudconfig"
-#  springProfilesActive: "cloudconfig,observability"
+  # springProfilesActive: "cloudconfig,observability"
   serverPort: "8087"
 
 probes:

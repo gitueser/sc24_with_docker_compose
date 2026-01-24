@@ -1,5 +1,4 @@
 global:
-#  namespace: selmag-helm
 
   # Локальный registry контейнер, доступный из pod'ов через host.docker.internal
   imageRegistry: host.docker.internal:5000
@@ -8,20 +7,30 @@ global:
   configMapName: selmag-config
   secretName: selmag-secret
 
-  # Источники env-файлов в репозитории (мы будем поднимать их в ConfigMap/Secret)
   envFiles:
-    config: k8s/shared/.env.config
-    secret: k8s/shared/.env.secret
+    config: files/.env.config
+    secret: files/.env.secret
 
 bootstrap:
-  namespace:
-    enabled: true
-
   configMap:
     enabled: true
-
   secret:
     enabled: true
+
+keycloak:
+  enabled: true
+
+postgres-catalogue:
+  enabled: true
+
+mongo-feedback:
+  enabled: true
+
+config-server:
+  enabled: true
+
+eureka-server:
+  enabled: true
 
 admin-server:
   enabled: true

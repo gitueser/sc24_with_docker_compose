@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ .Values.statefulset.name }}
-  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "mongo-feedback.labels" . | nindent 4 }}
 spec:
@@ -10,11 +9,11 @@ spec:
   replicas: {{ .Values.statefulset.replicas }}
   selector:
     matchLabels:
-      {{- include "mongo-feedback.labels" . | nindent 6 }}
+      {{- include "mongo-feedback.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "mongo-feedback.labels" . | nindent 8 }}
+        {{- include "mongo-feedback.selectorLabels" . | nindent 8 }}
     spec:
       terminationGracePeriodSeconds: {{ .Values.statefulset.terminationGracePeriodSeconds }}
       containers:
@@ -25,25 +24,28 @@ spec:
             - "--bind_ip_all"
             - "--quiet"
           ports:
-            - containerPort: {{ .Values.service.port }}
-              name: mongodb
+            - name: {{ .Values.service.targetPortName }}
+              containerPort: {{ .Values.containerPort }}
           volumeMounts:
             - name: data
               mountPath: {{ .Values.statefulset.dataMountPath }}
+
           readinessProbe:
             tcpSocket:
-              port: {{ .Values.service.port }}
+              port: {{ .Values.service.targetPortName }}
             initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
             timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
             failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+
           livenessProbe:
             tcpSocket:
-              port: {{ .Values.service.port }}
+              port: {{ .Values.service.targetPortName }}
             initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
             timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
             failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+
       volumes:
         - name: data
           persistentVolumeClaim:

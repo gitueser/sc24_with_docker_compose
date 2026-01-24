@@ -1,62 +1,61 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.deployment.name }}-deployment
-  namespace: {{ .Release.Namespace }}
+  name: {{ .Values.deployment.name }}
   labels:
     {{- include "config-server.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.deployment.replicas }}
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ .Values.deployment.name }}
+      {{- include "config-server.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ .Values.deployment.name }}
+        {{- include "config-server.selectorLabels" . | nindent 8 }}
     spec:
       containers:
-        - name: {{ .Values.deployment.name }}
+        - name: {{ .Values.deployment.appLabel }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 
           ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
+            - name: {{ .Values.service.targetPortName }}
+              containerPort: {{ .Values.containerPort }}
 
           envFrom:
             - configMapRef:
-                name: selmag-config
+                name: {{ $.Values.global.configMapName }}
             - secretRef:
-                name: selmag-secret
+                name: {{ $.Values.global.secretName }}
 
           env:
             - name: SPRING_PROFILES_ACTIVE
-              value: "git"
+              value: {{ .Values.env.springProfilesActive | quote }}
 
             - name: SERVER_PORT
               valueFrom:
                 configMapKeyRef:
-                  name: selmag-config
-                  key: CONFIG_SERVER_PORT_INTERNAL
+                  name: {{ $.Values.global.configMapName }}
+                  key: {{ .Values.envKeys.serverPortKey }}
 
             - name: CONFIG_SERVER_SECURITY_USERNAME
               valueFrom:
                 configMapKeyRef:
-                  name: selmag-config
-                  key: CONFIG_SERVER_SECURITY_USERNAME
+                  name: {{ $.Values.global.configMapName }}
+                  key: {{ .Values.envKeys.securityUsernameKey }}
 
             - name: CONFIG_GIT_LABEL
               valueFrom:
                 configMapKeyRef:
-                  name: selmag-config
-                  key: CONFIG_GIT_LABEL
+                  name: {{ $.Values.global.configMapName }}
+                  key: {{ .Values.envKeys.gitLabelKey }}
 
             - name: CONFIG_SERVER_SECURITY_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: selmag-secret
-                  key: CONFIG_SERVER_SECURITY_PASSWORD
+                  name: {{ $.Values.global.secretName }}
+                  key: {{ .Values.envKeys.securityPasswordKey }}
 
           readinessProbe:
             exec:
@@ -66,7 +65,7 @@ spec:
                 - >
                   curl -fsS
                   -u "$CONFIG_SERVER_SECURITY_USERNAME:$CONFIG_SERVER_SECURITY_PASSWORD"
-                  "http://127.0.0.1:$SERVER_PORT/actuator/health"
+                  "http://127.0.0.1:$SERVER_PORT{{ .Values.probes.actuatorHealthPath }}"
                   >/dev/null
             initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.readinessPeriodSeconds }}
@@ -81,7 +80,7 @@ spec:
                 - >
                   curl -fsS
                   -u "$CONFIG_SERVER_SECURITY_USERNAME:$CONFIG_SERVER_SECURITY_PASSWORD"
-                  "http://127.0.0.1:$SERVER_PORT/actuator/health"
+                  "http://127.0.0.1:$SERVER_PORT{{ .Values.probes.actuatorHealthPath }}"
                   >/dev/null
             initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.livenessPeriodSeconds }}

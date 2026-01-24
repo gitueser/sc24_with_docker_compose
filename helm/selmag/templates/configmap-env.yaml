@@ -4,9 +4,10 @@ kind: ConfigMap
 metadata:
   name: {{ include "selmag.configMapName" . }}
 data:
-  {{- $raw := .Files.Get "files/.env.config" | default "" -}}
+  {{- $path := .Values.global.envFiles.config | default "files/.env.config" -}}
+  {{- $raw := .Files.Get $path | default "" -}}
   {{- if eq $raw "" }}
-_error: "files/.env.config is missing in the chart"
+  _error: {{ printf "%s is missing in the chart" $path | quote }}
   {{- else }}
   {{- range $line := splitList "\n" $raw }}
   {{- $l := trim $line }}
@@ -18,4 +19,4 @@ _error: "files/.env.config is missing in the chart"
   {{- end }}
   {{- end }}
   {{- end }}
-  {{- end }}
+{{- end }}

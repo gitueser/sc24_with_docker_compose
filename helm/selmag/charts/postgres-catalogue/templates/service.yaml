@@ -1,16 +1,14 @@
-{{- if .Values.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Values.service.name }}
   labels:
-    app: {{ .Values.statefulset.name }}
+    {{- include "postgres-catalogue.labels" . | nindent 4 }}
 spec:
-  type: ClusterIP
+  type: {{ .Values.service.type }}
   selector:
-    app: {{ .Values.statefulset.name }}
+    {{- include "postgres-catalogue.selectorLabels" . | nindent 4 }}
   ports:
-    - name: postgresql
+    - name: {{ .Values.service.portName }}
       port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
-{{- end }}
+      targetPort: {{ .Values.service.targetPortName }}

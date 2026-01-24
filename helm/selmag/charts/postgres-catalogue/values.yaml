@@ -1,5 +1,3 @@
-enabled: true
-
 image:
   repository: host.docker.internal:5000/selmag/postgres
   tag: "16"
@@ -7,10 +5,15 @@ image:
 
 service:
   name: selmag-catalogue-db-svc
+  type: ClusterIP
   port: 5432
+  portName: postgresql
+  targetPortName: postgresql
 
 statefulset:
   name: selmag-catalogue-db
+  appLabel: selmag-catalogue-db
+  replicas: 1
 
 persistence:
   enabled: true
@@ -21,8 +24,18 @@ persistence:
   # storageClassName: ""  # если нужно явно
 
 env:
-  configMapName: selmag-config
-  secretName: selmag-secret
   userKey: CATALOGUE_DB_USER
   dbKey: CATALOGUE_DB_NAME
   passwordKey: CATALOGUE_DB_PASSWORD
+
+probes:
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 12
+  liveness:
+    initialDelaySeconds: 30
+    periodSeconds: 20
+    timeoutSeconds: 3
+    failureThreshold: 6

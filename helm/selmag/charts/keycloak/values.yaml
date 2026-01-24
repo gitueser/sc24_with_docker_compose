@@ -1,16 +1,43 @@
-enabled: true
-
 image:
   repository: host.docker.internal:5000/selmag/keycloak
   tag: "23.0.7"
   pullPolicy: Always
 
+replicaCount: 1
+
+deployment:
+  name: selmag-keycloak
+  appLabel: selmag-keycloak
+
 service:
   name: selmag-keycloak-svc
+  type: ClusterIP
   port: 8080
+  targetPortName: http
+
+containerPort: 8080
+
+#envFrom:
+#  configMapName: selmag-config
+#  secretName: selmag-secret
+
+args:
+  - "start-dev"
+  - "--import-realm"
+
+probes:
+  readinessPath: /
+  livenessPath: /
+  initialDelaySeconds: 30
+  readinessPeriodSeconds: 10
+  livenessPeriodSeconds: 20
+  timeoutSeconds: 3
+  readinessFailureThreshold: 12
+  livenessFailureThreshold: 6
 
 ingress:
   enabled: true
+  name: selmag-keycloak-ingress
   className: nginx
   host: keycloak.selm.ag.192.168.49.2.nip.io
   annotations:
@@ -19,7 +46,14 @@ ingress:
   pathType: Prefix
 
 realm:
+  # Если enabled=true, chart создаст Secret из файла в charts/keycloak/files/
   enabled: true
+
+  # Имя секрета, который будет создан (или использован, если enabled=false, но secretName указан)
   secretName: selmag-keycloak-realm
+
+  # Ключ в secret.data и имя файла в /opt/keycloak/data/import
   fileName: selmag-minikube.json
+
+  # Путь, куда будет смонтирован секрет
   mountPath: /opt/keycloak/data/import

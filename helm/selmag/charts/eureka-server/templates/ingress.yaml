@@ -2,12 +2,11 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: selmag-eureka-server-ingress
-  namespace: {{ .Release.Namespace }}
-{{- with .Values.ingress.annotations }}
+  name: {{ .Values.ingress.name }}
+  {{- with .Values.ingress.annotations }}
   annotations:
-{{- toYaml . | nindent 4 }}
-{{- end }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
@@ -20,5 +19,5 @@ spec:
               service:
                 name: {{ .Values.service.name }}
                 port:
-                  name: http
+                  name: {{ .Values.service.targetPortName }}
 {{- end }}
