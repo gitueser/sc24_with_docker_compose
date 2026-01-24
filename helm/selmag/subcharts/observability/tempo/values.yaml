@@ -1,0 +1,118 @@
+image:
+  repository: grafana/tempo
+  tag: "2.3.1"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+deployment:
+  name: selmag-tempo-deployment
+  appLabel: selmag-tempo
+
+service:
+  name: selmag-tempo-svc
+  type: ClusterIP
+
+ports:
+  http:
+    name: http
+    containerPort: 3200
+    servicePort: 3200
+
+  zipkin:
+    name: zipkin
+    containerPort: 9411
+    servicePort: 9411
+
+  otlpGrpc:
+    name: otlp-grpc
+    containerPort: 4317
+    servicePort: 4317
+
+  otlpHttp:
+    name: otlp-http
+    containerPort: 4318
+    servicePort: 4318
+
+args:
+  - "-config.file=/etc/tempo/tempo.yaml"
+
+config:
+  configMapName: selmag-tempo-config
+  mountPath: /etc/tempo
+  fileName: tempo.yaml
+
+data:
+  enabled: true
+  volumeName: tempo-data
+  mountPath: /tmp/tempo
+  type: emptyDir
+
+tempoConfigYaml: |
+  stream_over_http_enabled: true
+  server:
+    http_listen_port: 3200
+    log_level: info
+
+  query_frontend:
+    search:
+      duration_slo: 5s
+      throughput_bytes_slo: 1.073741824e+09
+    trace_by_id:
+      duration_slo: 5s
+
+  distributor:
+    receivers:
+      jaeger:
+        protocols:
+          thrift_http:
+          grpc:
+          thrift_binary:
+          thrift_compact:
+      zipkin:
+      otlp:
+        protocols:
+          http:
+          grpc:
+      opencensus:
+
+  ingester:
+    max_block_duration: 5m
+
+  compactor:
+    compaction:
+      block_retention: 1h
+
+  metrics_generator:
+    registry:
+      external_labels:
+        source: tempo
+        cluster: kubernetes
+    storage:
+      path: /tmp/tempo/generator/wal
+      remote_write:
+        - url: http://selmag-victoria-metrics-svc:8428/api/v1/write
+          send_exemplars: true
+
+  storage:
+    trace:
+      backend: local
+      wal:
+        path: /tmp/tempo/wal
+      local:
+        path: /tmp/tempo/blocks
+
+  overrides:
+    defaults:
+      metrics_generator:
+        processors: [service-graphs, span-metrics]
+
+probes:
+  readinessPath: /ready
+  livenessPath: /ready
+  initialDelaySeconds: 20
+  readinessPeriodSeconds: 10
+  livenessPeriodSeconds: 20
+  timeoutSeconds: 3
+  readinessFailureThreshold: 12
+  livenessFailureThreshold: 6

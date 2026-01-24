@@ -1,0 +1,61 @@
+image:
+  repository: grafana/grafana
+  tag: "10.2.4"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+deployment:
+  name: selmag-grafana-deployment
+  appLabel: selmag-grafana
+
+service:
+  name: selmag-grafana-svc
+  type: ClusterIP
+  port: 3000
+  targetPortName: http
+
+containerPort: 3000
+
+provisioning:
+  datasources:
+    configMapName: selmag-grafana-datasources
+    mountPath: /etc/grafana/provisioning/datasources
+    fileName: datasources.yaml
+
+datasources:
+  victoriaMetrics:
+    name: VictoriaMetrics
+    type: prometheus
+    access: proxy
+    url: http://selmag-victoria-metrics-svc:8428
+    isDefault: true
+  loki:
+    name: Loki
+    type: loki
+    access: proxy
+    url: http://selmag-loki-svc:3100
+  tempo:
+    name: Tempo
+    type: tempo
+    access: proxy
+    url: http://selmag-tempo-svc:3200
+
+ingress:
+  enabled: true
+  name: selmag-grafana-ingress
+  className: nginx
+  host: grafana.selm.ag.192.168.49.2.nip.io
+  annotations: {}
+  path: /
+  pathType: Prefix
+
+probes:
+  readinessPath: /api/health
+  livenessPath: /api/health
+  initialDelaySeconds: 30
+  readinessPeriodSeconds: 10
+  livenessPeriodSeconds: 20
+  timeoutSeconds: 3
+  readinessFailureThreshold: 12
+  livenessFailureThreshold: 6

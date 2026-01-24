@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.deployment.name }}
+  labels:
+    {{- include "loki.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "loki.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "loki.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Values.deployment.appLabel }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          args:
+            {{- toYaml .Values.args | nindent 12 }}
+
+          ports:
+            - name: {{ .Values.service.targetPortName }}
+              containerPort: {{ .Values.containerPort }}
+
+          {{- if .Values.storage.enabled }}
+          volumeMounts:
+            - name: {{ .Values.storage.volumeName }}
+              mountPath: {{ .Values.storage.mountPath }}
+          {{- end }}
+
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readinessPath }}
+              port: {{ .Values.service.targetPortName }}
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readinessPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readinessFailureThreshold }}
+
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.livenessPath }}
+              port: {{ .Values.service.targetPortName }}
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.livenessPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.livenessFailureThreshold }}
+
+      {{- if .Values.storage.enabled }}
+      volumes:
+        - name: {{ .Values.storage.volumeName }}
+          emptyDir: {}
+      {{- end }}

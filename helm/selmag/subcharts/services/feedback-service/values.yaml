@@ -1,26 +1,25 @@
 image:
-  repository: host.docker.internal:5000/selmag/admin-server
+  repository: host.docker.internal:5000/selmag/feedback-service
   tag: "24.1.1"
   pullPolicy: Always
 
 replicaCount: 1
 
 deployment:
-  name: selmag-admin-server-deployment
-  appLabel: selmag-admin-server
+  name: selmag-feedback-service-deployment
+  appLabel: selmag-feedback-service
 
 service:
-  name: selmag-admin-server-svc
+  name: selmag-feedback-service-svc
   type: ClusterIP
-  port: 8085
+  port: 8084
   targetPortName: http
 
-containerPort: 8085
+containerPort: 8084
 
 env:
   springProfilesActive: "cloudconfig"
-  # springProfilesActive: "cloudconfig,observability"
-  serverPort: "8085"
+  serverPort: "8084"
 
 probes:
   initialDelaySeconds: 60

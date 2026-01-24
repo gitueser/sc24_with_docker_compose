@@ -1,26 +1,25 @@
 image:
-  repository: host.docker.internal:5000/selmag/manager-app
+  repository: host.docker.internal:5000/selmag/customer-app
   tag: "24.1.1"
   pullPolicy: Always
 
 replicaCount: 1
 
 deployment:
-  name: selmag-manager-app-deployment
-  appLabel: selmag-manager-app
+  name: selmag-customer-app-deployment
+  appLabel: selmag-customer-app
 
 service:
-  name: selmag-manager-app-svc
+  name: selmag-customer-app-svc
   type: ClusterIP
-  port: 8087
+  port: 8083
   targetPortName: http
 
-containerPort: 8087
+containerPort: 8083
 
 env:
   springProfilesActive: "cloudconfig"
-  # springProfilesActive: "cloudconfig,observability"
-  serverPort: "8087"
+  serverPort: "8083"
 
 probes:
   initialDelaySeconds: 60

@@ -1,36 +1,48 @@
 dependencies:
 - name: keycloak
-  repository: file://charts/keycloak
+  repository: file://subcharts/platform/keycloak
   version: 0.1.0
 - name: postgres-catalogue
-  repository: file://charts/postgres-catalogue
+  repository: file://subcharts/data/postgres-catalogue
   version: 0.1.0
 - name: mongo-feedback
-  repository: file://charts/mongo-feedback
+  repository: file://subcharts/data/mongo-feedback
   version: 0.1.0
 - name: config-server
-  repository: file://charts/config-server
+  repository: file://subcharts/services/config-server
   version: 0.1.0
 - name: eureka-server
-  repository: file://charts/eureka-server
+  repository: file://subcharts/services/eureka-server
   version: 0.1.0
 - name: admin-server
-  repository: file://charts/admin-server
+  repository: file://subcharts/services/admin-server
   version: 0.1.0
 - name: catalogue-service
-  repository: file://charts/catalogue-service
+  repository: file://subcharts/services/catalogue-service
   version: 0.1.0
 - name: feedback-service
-  repository: file://charts/feedback-service
+  repository: file://subcharts/services/feedback-service
   version: 0.1.0
 - name: customer-app
-  repository: file://charts/customer-app
+  repository: file://subcharts/services/customer-app
   version: 0.1.0
 - name: manager-app
-  repository: file://charts/manager-app
+  repository: file://subcharts/services/manager-app
   version: 0.1.0
 - name: api-gateway
-  repository: file://charts/api-gateway
+  repository: file://subcharts/services/api-gateway
   version: 0.1.0
-digest: sha256:a7153420eef72376e1ef37df3834e91ea8f28f0f5bff55ae90ddf920b2a8af4b
-generated: "2026-01-23T19:08:55.199574578+01:00"
+- name: victoria-metrics
+  repository: file://subcharts/observability/victoria-metrics
+  version: 0.1.0
+- name: grafana
+  repository: file://subcharts/observability/grafana
+  version: 0.1.0
+- name: tempo
+  repository: file://subcharts/observability/tempo
+  version: 0.1.0
+- name: loki
+  repository: file://subcharts/observability/loki
+  version: 0.1.0
+digest: sha256:64442c2d48c50071c2901a6b8b1dd5827b01aff5aee0fb17c6f9c34a12770cba
+generated: "2026-01-24T19:57:18.400921664+01:00"

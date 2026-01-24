@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.service.name }}
+  labels:
+    {{- include "tempo.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "tempo.labels" . | nindent 4 }}
+  ports:
+    - name: {{ .Values.ports.http.name }}
+      port: {{ .Values.ports.http.servicePort }}
+      targetPort: {{ .Values.ports.http.name }}
+
+    - name: {{ .Values.ports.zipkin.name }}
+      port: {{ .Values.ports.zipkin.servicePort }}
+      targetPort: {{ .Values.ports.zipkin.name }}
+
+    - name: {{ .Values.ports.otlpGrpc.name }}
+      port: {{ .Values.ports.otlpGrpc.servicePort }}
+      targetPort: {{ .Values.ports.otlpGrpc.name }}
+
+    - name: {{ .Values.ports.otlpHttp.name }}
+      port: {{ .Values.ports.otlpHttp.servicePort }}
+      targetPort: {{ .Values.ports.otlpHttp.name }}

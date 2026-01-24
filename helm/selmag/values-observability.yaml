@@ -1,0 +1,34 @@
+# Включаем observability чарты
+victoria-metrics:
+  enabled: true
+grafana:
+  enabled: true
+tempo:
+  enabled: true
+loki:
+  enabled: true
+
+# Включаем профиль observability в бизнес-сервисах
+admin-server:
+  env:
+    springProfilesActive: "cloudconfig,observability"
+
+api-gateway:
+  env:
+    springProfilesActive: "cloudconfig,observability"
+
+catalogue-service:
+  env:
+    springProfilesActive: "cloudconfig,observability"
+
+feedback-service:
+  env:
+    springProfilesActive: "cloudconfig,observability"
+
+customer-app:
+  env:
+    springProfilesActive: "cloudconfig,observability"
+
+manager-app:
+  env:
+    springProfilesActive: "cloudconfig,observability"

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: grafana
+description: Grafana for Selmag (datasources provisioning)
+type: application
+version: 0.1.0
+appVersion: "10.2.4"

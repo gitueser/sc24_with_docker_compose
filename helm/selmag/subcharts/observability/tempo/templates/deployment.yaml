@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.deployment.name }}
+  labels:
+    {{- include "tempo.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "tempo.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "tempo.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Values.deployment.appLabel }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          args:
+            {{- toYaml .Values.args | nindent 12 }}
+
+          ports:
+            - name: {{ .Values.ports.http.name }}
+              containerPort: {{ .Values.ports.http.containerPort }}
+            - name: {{ .Values.ports.zipkin.name }}
+              containerPort: {{ .Values.ports.zipkin.containerPort }}
+            - name: {{ .Values.ports.otlpGrpc.name }}
+              containerPort: {{ .Values.ports.otlpGrpc.containerPort }}
+            - name: {{ .Values.ports.otlpHttp.name }}
+              containerPort: {{ .Values.ports.otlpHttp.containerPort }}
+
+          volumeMounts:
+            - name: tempo-config
+              mountPath: {{ .Values.config.mountPath }}
+              readOnly: true
+            {{- if .Values.data.enabled }}
+            - name: {{ .Values.data.volumeName }}
+              mountPath: {{ .Values.data.mountPath }}
+            {{- end }}
+
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readinessPath }}
+              port: {{ .Values.ports.http.name }}
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readinessPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readinessFailureThreshold }}
+
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.livenessPath }}
+              port: {{ .Values.ports.http.name }}
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.livenessPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.livenessFailureThreshold }}
+
+      volumes:
+        - name: tempo-config
+          configMap:
+            name: {{ .Values.config.configMapName }}
+
+        {{- if .Values.data.enabled }}
+        - name: {{ .Values.data.volumeName }}
+          emptyDir: {}
+        {{- end }}

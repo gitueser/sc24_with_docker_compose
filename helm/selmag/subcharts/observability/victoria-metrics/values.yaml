@@ -1,0 +1,38 @@
+image:
+  repository: victoriametrics/victoria-metrics
+  tag: "v1.93.12"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+deployment:
+  name: selmag-victoria-metrics-deployment
+  appLabel: selmag-victoria-metrics
+
+service:
+  name: selmag-victoria-metrics-svc
+  type: ClusterIP
+  port: 8428
+  targetPortName: http
+
+containerPort: 8428
+
+config:
+  configMapName: selmag-vm-promscrape
+  fileName: promscrape.yaml
+  mountPath: /etc/vm
+  # Полный путь до файла, который будет передан в -promscrape.config
+  filePath: /etc/vm/promscrape.yaml
+
+args:
+  - "-promscrape.config=/etc/vm/promscrape.yaml"
+
+probes:
+  readinessPath: /health
+  livenessPath: /health
+  initialDelaySeconds: 10
+  readinessPeriodSeconds: 10
+  livenessPeriodSeconds: 20
+  timeoutSeconds: 3
+  readinessFailureThreshold: 12
+  livenessFailureThreshold: 6

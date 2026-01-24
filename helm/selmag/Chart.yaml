@@ -8,55 +8,75 @@ appVersion: "24.1.1"
 dependencies:
   - name: keycloak
     version: 0.1.0
-    repository: "file://charts/keycloak"
+    repository: "file://subcharts/platform/keycloak"
     condition: keycloak.enabled
 
   - name: postgres-catalogue
     version: 0.1.0
-    repository: "file://charts/postgres-catalogue"
+    repository: "file://subcharts/data/postgres-catalogue"
     condition: postgres-catalogue.enabled
 
   - name: mongo-feedback
     version: 0.1.0
-    repository: "file://charts/mongo-feedback"
+    repository: "file://subcharts/data/mongo-feedback"
     condition: mongo-feedback.enabled
 
   - name: config-server
     version: 0.1.0
-    repository: "file://charts/config-server"
+    repository: "file://subcharts/services/config-server"
     condition: config-server.enabled
 
   - name: eureka-server
     version: 0.1.0
-    repository: "file://charts/eureka-server"
+    repository: "file://subcharts/services/eureka-server"
     condition: eureka-server.enabled
 
   - name: admin-server
     version: 0.1.0
-    repository: "file://charts/admin-server"
+    repository: "file://subcharts/services/admin-server"
     condition: admin-server.enabled
 
   - name: catalogue-service
-    repository: "file://charts/catalogue-service"
     version: 0.1.0
+    repository: "file://subcharts/services/catalogue-service"
     condition: catalogue-service.enabled
 
   - name: feedback-service
     version: 0.1.0
-    repository: "file://charts/feedback-service"
+    repository: "file://subcharts/services/feedback-service"
     condition: feedback-service.enabled
 
   - name: customer-app
     version: 0.1.0
-    repository: "file://charts/customer-app"
+    repository: "file://subcharts/services/customer-app"
     condition: customer-app.enabled
 
   - name: manager-app
     version: 0.1.0
-    repository: "file://charts/manager-app"
+    repository: "file://subcharts/services/manager-app"
     condition: manager-app.enabled
 
   - name: api-gateway
     version: 0.1.0
-    repository: "file://charts/api-gateway"
+    repository: "file://subcharts/services/api-gateway"
     condition: api-gateway.enabled
+
+  - name: victoria-metrics
+    version: 0.1.0
+    repository: "file://subcharts/observability/victoria-metrics"
+    condition: victoria-metrics.enabled
+
+  - name: grafana
+    version: 0.1.0
+    repository: "file://subcharts/observability/grafana"
+    condition: grafana.enabled
+
+  - name: tempo
+    version: 0.1.0
+    repository: "file://subcharts/observability/tempo"
+    condition: tempo.enabled
+
+  - name: loki
+    version: 0.1.0
+    repository: "file://subcharts/observability/loki"
+    condition: loki.enabled

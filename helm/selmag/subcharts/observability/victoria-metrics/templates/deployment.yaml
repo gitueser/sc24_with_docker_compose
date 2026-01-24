@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.deployment.name }}
+  labels:
+    {{- include "victoria-metrics.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "victoria-metrics.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "victoria-metrics.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Values.deployment.appLabel }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          args:
+            {{- toYaml .Values.args | nindent 12 }}
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.containerPort }}
+
+          # Берём общие env из umbrella chart (selmag-config / selmag-secret)
+          envFrom:
+            - configMapRef:
+                name: {{ $.Values.global.configMapName }}
+            - secretRef:
+                name: {{ $.Values.global.secretName }}
+
+          volumeMounts:
+            - name: vm-promscrape
+              mountPath: {{ .Values.config.mountPath }}
+              readOnly: true
+
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readinessPath }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readinessPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readinessFailureThreshold }}
+
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.livenessPath }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.livenessPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.livenessFailureThreshold }}
+
+      volumes:
+        - name: vm-promscrape
+          configMap:
+            name: {{ .Values.config.configMapName }}

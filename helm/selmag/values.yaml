@@ -49,3 +49,15 @@ manager-app:
 
 api-gateway:
   enabled: true
+
+victoria-metrics:
+  enabled: false
+
+grafana:
+  enabled: false
+
+tempo:
+  enabled: false
+
+loki:
+  enabled: false

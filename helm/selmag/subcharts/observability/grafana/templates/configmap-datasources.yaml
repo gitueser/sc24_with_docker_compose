@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.provisioning.datasources.configMapName }}
+  labels:
+    {{- include "grafana.labels" . | nindent 4 }}
+data:
+  {{ .Values.provisioning.datasources.fileName }}: |
+    apiVersion: 1
+    datasources:
+      - name: {{ .Values.datasources.victoriaMetrics.name }}
+        type: {{ .Values.datasources.victoriaMetrics.type }}
+        access: {{ .Values.datasources.victoriaMetrics.access }}
+        url: {{ .Values.datasources.victoriaMetrics.url }}
+        isDefault: {{ .Values.datasources.victoriaMetrics.isDefault }}
+
+      - name: {{ .Values.datasources.loki.name }}
+        type: {{ .Values.datasources.loki.type }}
+        access: {{ .Values.datasources.loki.access }}
+        url: {{ .Values.datasources.loki.url }}
+
+      - name: {{ .Values.datasources.tempo.name }}
+        type: {{ .Values.datasources.tempo.type }}
+        access: {{ .Values.datasources.tempo.access }}
+        url: {{ .Values.datasources.tempo.url }}

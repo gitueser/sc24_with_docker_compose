@@ -19,7 +19,6 @@ containerPort: 8086
 
 env:
   springProfilesActive: "cloudconfig"
-  # springProfilesActive: "cloudconfig,observability"
   serverPort: "8086"
 
 probes:
