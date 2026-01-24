@@ -1,3 +1,31 @@
+# Bring the cluster up from scratch:
+# make up
+
+# Equivalent to:
+# * helm lint
+# * helm dependency update
+# * create a namespace
+# * apply all manifests
+# * show status
+
+# Completely tear down the cluster:
+# make down
+# deletes the namespace → everything inside
+
+# Rebuild "from scratch":
+# make clean up
+
+# Check the current state:
+# make status
+
+# Quickly check that Eureka is alive:
+# make check
+
+# View gateway logs:
+# make logs
+
+# ================
+
 NAMESPACE := selmag-helm
 CHART := helm/selmag
 RELEASE := selmag
