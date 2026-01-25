@@ -1,233 +1,232 @@
 # ==============================================================================
-# Selmag umbrella (Helm) Makefile
-#
-# Переходим на "правильный" workflow:
-#   - только helm upgrade --install / helm uninstall
-#   - никаких helm template | kubectl apply
+# Selmag local k8s (minikube/WSL2) workflow via Helm umbrella chart
 #
 # Основная идея:
-#   1) Базовый запуск (business-only) использует values.yaml
-#   2) Запуск с observability использует два values файла:
-#        values.yaml + values-observability.yaml
-#
-# Примеры:
-#   make up          # поставить/обновить бизнес-стек
-#   make up-obs      # поставить/обновить бизнес + observability
-#   make obs-on      # включить observability поверх уже установленного релиза
-#   make obs-off     # выключить observability, вернуться к business-only
-#   make down        # удалить Helm релиз (ресурсы, созданные Helm'ом)
-#   make purge       # удалить namespace (жестко снести всё включая PVC)
-#   make clean       # purge + создать namespace заново
-#
-# Проверки:
-#   make status      # kubectl get по основным ресурсам
-#   make rollout     # дождаться rollout всех deploy в namespace
-#   make check       # проверить, что Eureka отвечает 200
-#   make eureka-apps # проверить, какие сервисы зарегистрированы в Eureka
-#   make logs-gw     # последние 200 строк логов api-gateway
+# - Всегда деплоим через Helm: helm upgrade --install
+# - Observability включаем/выключаем overlay values-файлом
+# - Проверки делаем простыми smoke-check'ами (curl внутри кластера и/или через ingress)
 # ==============================================================================
 
-# -----------------------
-# Configuration
-# -----------------------
-NAMESPACE   := selmag-helm
-RELEASE     := selmag
-CHART       := helm/selmag
+NAMESPACE := selmag-helm
+CHART := helm/selmag
+RELEASE := selmag
 
-VALUES_BASE := $(CHART)/values.yaml
-VALUES_OBS  := $(CHART)/values-observability.yaml
+# ----- Values files -----
+VALUES_BASE := helm/selmag/values.yaml
+VALUES_OBS  := helm/selmag/values-observability.yaml
 
-# Таймаут для spring/ключевого/прочих долгих стартов.
-# Можно подстроить под железо.
-TIMEOUT_BASE := 10m
-TIMEOUT_OBS  := 15m
+# ----- Observability endpoints -----
+GRAFANA_SVC := selmag-grafana-svc
+VM_SVC := selmag-victoria-metrics-svc
+TEMPO_SVC := selmag-tempo-svc
+LOKI_SVC := selmag-loki-svc
 
-# Общие флаги Helm.
-# --atomic: при ошибке раскатки откатывает релиз назад.
-# --timeout: сколько ждать, пока ресурсы придут в состояние Ready.
-HELM_FLAGS_BASE := --atomic --timeout $(TIMEOUT_BASE)
-HELM_FLAGS_OBS  := --atomic --timeout $(TIMEOUT_OBS)
+GRAFANA_PORT := 3000
+VM_PORT := 8428
+TEMPO_HTTP_PORT := 3200
+LOKI_PORT := 3100
 
-# -----------------------
-# Phony targets
-# -----------------------
+# Как в твоём Ingress манифесте (nip.io на IP minikube)
+GRAFANA_INGRESS_HOST := grafana.selm.ag.192.168.49.2.nip.io
+
+# ==============================================================================
+# Внутренняя "функция" make для запуска curl внутри namespace.
+# Зачем:
+# - проверки ClusterIP/DNS стабильны и не зависят от WSL/Windows networking
+# - не нужно делать port-forward
+# Как работает:
+# - kubectl run создаёт одноразовый pod tmp-curl
+# - curl выполняется внутри pod'а
+# - pod удаляется автоматически (--rm)
+# ==============================================================================
+define KUBE_CURL
+kubectl -n $(NAMESPACE) run tmp-curl --rm -i --restart=Never --image=curlimages/curl -- \
+  sh -lc '$(1)'
+endef
+
+
 .PHONY: help \
-        lint deps namespace \
-        up up-obs \
-        obs-on obs-off \
-        status rollout events \
-        check eureka-apps \
-        logs-gw logs \
-        values manifest diff \
-        down uninstall purge clean
+        up obs-on obs-off \
+        install upgrade \
+        down clean namespace \
+        deps lint render \
+        status rollout events values \
+        logs check eureka-apps \
+        obs-check vm-check loki-check tempo-check grafana-svc-check grafana-ingress-check
 
 help:
 	@echo "Targets:"
-	@echo "  make up           - Helm install/upgrade business-only (values.yaml)"
-	@echo "  make up-obs       - Helm install/upgrade with observability overlay"
-	@echo "  make obs-on       - Enable observability (upgrade with overlay)"
-	@echo "  make obs-off      - Disable observability (upgrade without overlay)"
-	@echo "  make status       - kubectl get main resources"
-	@echo "  make rollout      - wait for rollout of all deployments"
-	@echo "  make check        - curl Eureka via ClusterIP service (expect 200)"
-	@echo "  make eureka-apps  - list registered services in Eureka"
-	@echo "  make logs-gw      - last 200 lines from api-gateway deployment"
-	@echo "  make logs         - alias for logs-gw"
-	@echo "  make down         - helm uninstall release (keeps namespace)"
-	@echo "  make purge        - delete namespace (DESTROYS PVC/DATA)"
-	@echo "  make clean        - purge + recreate namespace"
-	@echo "  make lint         - helm lint"
-	@echo "  make deps         - helm dependency update"
-	@echo "  make values       - show effective values for current release"
-	@echo "  make manifest     - show rendered manifest for current release"
-	@echo "  make diff         - show what Helm would change (server-side dry-run)"
+	@echo "  make up           - Установить/обновить базовый стек (без observability)"
+	@echo "  make obs-on       - Включить observability (overlay values)"
+	@echo "  make obs-off      - Выключить observability (вернуться к base values)"
+	@echo "  make status       - Показать состояние ресурсов"
+	@echo "  make rollout      - Подождать rollout всех Deployments"
+	@echo "  make check        - Быстрая проверка Eureka (HTTP 200 на /)"
+	@echo "  make eureka-apps  - Проверка регистрации основных приложений в Eureka"
+	@echo "  make obs-check    - Smoke checks observability endpoints"
+	@echo "  make logs         - Логи api-gateway (tail)"
+	@echo "  make events       - Последние события в namespace"
+	@echo "  make values       - Показать user-supplied values текущего релиза"
+	@echo "  make down         - Удалить релиз Helm (оставить namespace)"
+	@echo "  make clean        - Полная очистка: удалить namespace целиком"
 
-# -----------------------
-# Helm chart quality gates
-# -----------------------
 
-# helm lint CHART
-# Проверяет структуру чарта, шаблоны, некоторые типичные ошибки.
-lint:
-	helm lint $(CHART)
-
-# helm dependency update CHART
-# Подтягивает/переупаковывает зависимости (subcharts), создает/обновляет Chart.lock.
-deps:
-	helm dependency update $(CHART)
-
-# -----------------------
+# ==============================================================================
 # Namespace management
-# -----------------------
+# ==============================================================================
 
-# Создать namespace, если его нет.
 namespace:
+	# Создаём namespace, если его нет (idempotent)
 	kubectl get ns $(NAMESPACE) >/dev/null 2>&1 || kubectl create ns $(NAMESPACE)
 
-# -----------------------
-# Install/Upgrade workflows
-# -----------------------
-
-# "Business-only" install/upgrade:
-# helm upgrade --install RELEASE CHART -n NAMESPACE -f values.yaml --atomic --timeout ...
-up: lint deps namespace
-	helm upgrade --install $(RELEASE) $(CHART) \
-	  -n $(NAMESPACE) \
-	  -f $(VALUES_BASE) \
-	  $(HELM_FLAGS_BASE)
-	$(MAKE) status
-	$(MAKE) rollout
-
-# Install/upgrade with observability overlay:
-# helm upgrade --install RELEASE CHART -n NAMESPACE -f values.yaml -f values-observability.yaml ...
-up-obs: lint deps namespace
-	helm upgrade --install $(RELEASE) $(CHART) \
-	  -n $(NAMESPACE) \
-	  -f $(VALUES_BASE) \
-	  -f $(VALUES_OBS) \
-	  $(HELM_FLAGS_OBS)
-	$(MAKE) status
-	$(MAKE) rollout
-
-# Включить observability поверх уже стоящего релиза:
-# Это просто upgrade с overlay values.
-obs-on: deps namespace
-	helm upgrade $(RELEASE) $(CHART) \
-	  -n $(NAMESPACE) \
-	  -f $(VALUES_BASE) \
-	  -f $(VALUES_OBS) \
-	  $(HELM_FLAGS_OBS)
-	$(MAKE) status
-	$(MAKE) rollout
-
-# Выключить observability:
-# Это upgrade БЕЗ overlay-файла.
-# Helm удалит ресурсы observability-чартов, т.к. зависимости выпадут по condition *.enabled.
-obs-off: deps namespace
-	helm upgrade $(RELEASE) $(CHART) \
-	  -n $(NAMESPACE) \
-	  -f $(VALUES_BASE) \
-	  $(HELM_FLAGS_BASE)
-	$(MAKE) status
-	$(MAKE) rollout
-
-# -----------------------
-# Visibility / Debug
-# -----------------------
-
-# Показать текущий статус ресурсов в namespace.
-status:
-	kubectl -n $(NAMESPACE) get deploy,sts,po,svc,ingress,pvc,cm,secret
-
-# Дождаться раскатки всех Deployment.
-# Важно: у kubectl нет rollout status --all, поэтому делаем через xargs.
-rollout:
-	kubectl -n $(NAMESPACE) get deploy -o name | xargs -n1 kubectl -n $(NAMESPACE) rollout status --timeout=300s
-
-# Последние события — удобно для диагностики (pull image, readiness, scheduling и т.п.)
-events:
-	kubectl -n $(NAMESPACE) get events --sort-by=.lastTimestamp | tail -n 50
-
-# Показать effective values релиза (что реально применено Helm'ом).
-values:
-	helm get values $(RELEASE) -n $(NAMESPACE)
-
-# Показать отрендеренные манифесты текущего релиза (как их видит Helm).
-manifest:
-	helm get manifest $(RELEASE) -n $(NAMESPACE) | less
-
-# Показать, что изменится при следующем upgrade (без применения):
-# --dry-run=server: просит API-сервер провалидировать как будто применяем.
-# Полезно перед реальным upgrade.
-diff:
-	helm upgrade $(RELEASE) $(CHART) \
-	  -n $(NAMESPACE) \
-	  -f $(VALUES_BASE) \
-	  --dry-run=server
-
-# -----------------------
-# Service checks (smoke tests)
-# -----------------------
-
-# Проверка, что Eureka отвечает 200 по сервису внутри кластера.
-# Важно: команда НЕ перезапускает Eureka.
-check:
-	kubectl -n $(NAMESPACE) run tmp-curl --rm -it --restart=Never \
-	  --image=curlimages/curl -- \
-	  sh -lc 'curl -sS -o /dev/null -w "%{http_code}\n" http://selmag-eureka-server-svc:8761/'
-
-# Проверка, что сервисы зарегистрированы в Eureka (по списку).
-eureka-apps:
-	kubectl -n $(NAMESPACE) run tmp-curl --rm -it --restart=Never \
-	  --image=curlimages/curl -- \
-	  sh -lc 'curl -sS http://selmag-eureka-server-svc:8761/eureka/apps | grep -E "SELMAG-(CATALOGUE-SERVICE|FEEDBACK-SERVICE|CUSTOMER-APP|MANAGER-APP|API-GATEWAY)" -n || true'
-
-# Логи api-gateway (последние 200 строк).
-logs-gw:
-	kubectl -n $(NAMESPACE) logs deploy/selmag-api-gateway-deployment --tail=200
-
-# Алиас.
-logs: logs-gw
-
-# -----------------------
-# Tear down
-# -----------------------
-
-# Удалить Helm релиз:
-# Helm удалит все ресурсы, которые он создавал (в рамках релиза),
-# но namespace останется, и PVC могут остаться если они "за пределами" релиза
-# (в твоем кейсе PVC создаются чартами и обычно удаляются вместе с релизом,
-# но зависит от политики и finalizers).
-down: uninstall
-
-uninstall:
-	helm uninstall $(RELEASE) -n $(NAMESPACE) || true
-
-# Жесткое удаление namespace (снесет ВСЁ внутри, включая PVC и данные).
-purge:
+clean:
+	# Полная очистка окружения (удаляет ВСЕ ресурсы внутри namespace)
+	# Важно: удаление namespace удалит и PVC/секреты/конфиги в нём.
 	kubectl delete ns $(NAMESPACE) --ignore-not-found
 
-# Полная пересборка окружения:
-# purge + recreate namespace.
-clean: purge
-	kubectl create ns $(NAMESPACE)
+down:
+	# Удаляем Helm-релиз (namespace при этом остаётся)
+	# Это "мягче", чем clean: можно быстро переустановить без пересоздания ns.
+	helm uninstall $(RELEASE) -n $(NAMESPACE) || true
+
+
+# ==============================================================================
+# Helm: deps -> lint (best practice for umbrella chart)
+# ==============================================================================
+
+deps:
+	# Подтягиваем/обновляем зависимости umbrella chart.
+	# Для file:// зависимостей Helm пакует subcharts и кладёт их в helm/selmag/charts/
+	helm dependency update $(CHART)
+
+lint: deps
+	# Линтим уже "собранный" chart вместе с зависимостями.
+	# Это убирает warning вида "chart directory is missing these dependencies ..."
+	helm lint $(CHART)
+
+render: deps
+	# Рендер шаблонов в YAML без применения в кластер.
+	# Полезно для отладки: можно посмотреть итоговые манифесты.
+	helm template $(RELEASE) $(CHART) -n $(NAMESPACE) -f $(VALUES_BASE) > /tmp/selmag.rendered.yaml
+	@echo "Rendered to /tmp/selmag.rendered.yaml"
+
+
+# ==============================================================================
+# Deploy workflows
+# ==============================================================================
+
+up: lint namespace install status rollout
+	@echo "Base stack is up"
+
+install:
+	# Установка/обновление базового стека (без observability)
+	# --atomic: если что-то не поднялось в таймаут — Helm откатит релиз
+	# --timeout: общий таймаут на установку (включая ожидание готовности)
+	helm upgrade --install $(RELEASE) $(CHART) \
+	  -n $(NAMESPACE) \
+	  -f $(VALUES_BASE) \
+	  --atomic --timeout 10m
+
+upgrade: install
+	@true
+
+obs-on: lint namespace
+	# Включаем observability:
+	# - подключаем overlay values файл
+	# - профили observability для бизнес-сервисов задаются ТОЛЬКО в overlay,
+	#   поэтому obs-off возвращает их обратно.
+	helm upgrade $(RELEASE) $(CHART) \
+	  -n $(NAMESPACE) \
+	  -f $(VALUES_BASE) \
+	  -f $(VALUES_OBS) \
+	  --atomic --timeout 15m
+	$(MAKE) status
+	$(MAKE) rollout
+	@echo "Observability is ON"
+
+obs-off: lint namespace
+	# Выключаем observability:
+	# - деплоим только base values
+	# - observability чарты выключаются, профили у сервисов откатываются на base
+	helm upgrade $(RELEASE) $(CHART) \
+	  -n $(NAMESPACE) \
+	  -f $(VALUES_BASE) \
+	  --atomic --timeout 10m
+	$(MAKE) status
+	$(MAKE) rollout
+	@echo "Observability is OFF"
+
+
+# ==============================================================================
+# Cluster inspection / troubleshooting
+# ==============================================================================
+
+status:
+	# Срез по основным типам ресурсов
+	kubectl -n $(NAMESPACE) get deploy,sts,po,svc,ingress,pvc,cm,secret
+
+rollout:
+	# Ожидаем rollout ВСЕХ deployments в namespace.
+	# Примечание: это не "probe-ready" проверка приложений, а проверка, что Deployment завершил rollout.
+	kubectl -n $(NAMESPACE) get deploy -o name | xargs -n1 kubectl -n $(NAMESPACE) rollout status --timeout=300s
+
+events:
+	# Последние события (часто показывает причины рестартов/failed probes)
+	kubectl -n $(NAMESPACE) get events --sort-by=.lastTimestamp | tail -n 50
+
+values:
+	# Текущие user-supplied values, которые реально применены к релизу
+	helm get values $(RELEASE) -n $(NAMESPACE)
+
+logs:
+	# Быстрый tail логов gateway (как центральной точки входа)
+	kubectl -n $(NAMESPACE) logs deploy/selmag-api-gateway-deployment --tail=200
+
+check:
+	# Быстрая проверка доступности Eureka по ClusterIP (200 на /)
+	$(call KUBE_CURL, curl -sS -o /dev/null -w "%{http_code}\n" http://selmag-eureka-server-svc:8761/)
+
+eureka-apps:
+	# Проверяем, что основные приложения зарегистрированы в Eureka.
+	# Выводит только совпавшие строки (если ничего не вывел — стоит смотреть логи сервисов/еврику).
+	$(call KUBE_CURL, \
+	  curl -sS http://selmag-eureka-server-svc:8761/eureka/apps | \
+	  grep -E "SELMAG-(CATALOGUE-SERVICE|FEEDBACK-SERVICE|CUSTOMER-APP|MANAGER-APP|API-GATEWAY)" -n || true \
+	)
+
+
+# ==============================================================================
+# Observability smoke checks
+# ==============================================================================
+
+obs-check: vm-check loki-check tempo-check grafana-svc-check grafana-ingress-check
+	@echo "OK: observability basic checks passed"
+
+vm-check:
+	# VictoriaMetrics: Prometheus-compatible endpoint buildinfo должен отвечать 200
+	$(call KUBE_CURL, curl -fsS -o /dev/null http://$(VM_SVC):$(VM_PORT)/api/v1/status/buildinfo)
+
+loki-check:
+	# Loki: /ready — стандартный readiness endpoint (200)
+	$(call KUBE_CURL, curl -fsS -o /dev/null http://$(LOKI_SVC):$(LOKI_PORT)/ready)
+
+tempo-check:
+	# Tempo: /ready — стандартный readiness endpoint (200)
+	$(call KUBE_CURL, curl -fsS -o /dev/null http://$(TEMPO_SVC):$(TEMPO_HTTP_PORT)/ready)
+
+grafana-svc-check:
+	# Grafana по service: часто отдаёт редирект на /login (302). Считаем 200 или 302 успехом.
+	$(call KUBE_CURL, \
+	  code=$$(curl -sS -o /dev/null -w "%{http_code}" http://$(GRAFANA_SVC):$(GRAFANA_PORT)/); \
+	  test "$$code" = "200" -o "$$code" = "302" \
+	)
+
+grafana-ingress-check:
+	# Grafana по ingress: также допускаем 200/302.
+	@code=$$(curl -sS -o /dev/null -w "%{http_code}" http://$(GRAFANA_INGRESS_HOST)/ || true); \
+	  if [ "$$code" = "200" ] || [ "$$code" = "302" ]; then \
+	    echo "Grafana ingress OK (HTTP $$code)"; \
+	  else \
+	    echo "Grafana ingress FAIL (HTTP $$code)"; \
+	    exit 1; \
+	  fi
