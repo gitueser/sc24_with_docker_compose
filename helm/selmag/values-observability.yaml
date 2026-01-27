@@ -7,6 +7,9 @@ tempo:
   enabled: true
 loki:
   enabled: true
+promtail:
+  enabled: true
+
 
 # Включаем профиль observability в бизнес-сервисах
 admin-server:

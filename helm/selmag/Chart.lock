@@ -44,5 +44,8 @@ dependencies:
 - name: loki
   repository: file://subcharts/observability/loki
   version: 0.1.0
-digest: sha256:64442c2d48c50071c2901a6b8b1dd5827b01aff5aee0fb17c6f9c34a12770cba
-generated: "2026-01-24T19:57:18.400921664+01:00"
+- name: promtail
+  repository: file://subcharts/observability/promtail
+  version: 0.1.0
+digest: sha256:21f068edb266111325fa935e9d1151045d48888c3d5f971310f803d0eec5fc86
+generated: "2026-01-25T20:11:26.9397537+01:00"

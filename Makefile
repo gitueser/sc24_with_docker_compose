@@ -5,6 +5,11 @@
 # - Всегда деплоим через Helm: helm upgrade --install
 # - Observability включаем/выключаем overlay values-файлом
 # - Проверки делаем простыми smoke-check'ами (curl внутри кластера и/или через ingress)
+#
+# Best practices:
+# - Всегда держим зависимости Helm в sync:
+#   любые изменения Chart.yaml -> helm dependency update
+# - deps -> lint (для umbrella chart иначе будет warning о missing dependencies)
 # ==============================================================================
 
 NAMESPACE := selmag-helm
@@ -25,6 +30,11 @@ GRAFANA_PORT := 3000
 VM_PORT := 8428
 TEMPO_HTTP_PORT := 3200
 LOKI_PORT := 3100
+
+# Promtail (DaemonSet)
+PROMTAIL_DS := selmag-promtail
+PROMTAIL_LABEL := app=selmag-promtail
+PROMTAIL_PORT := 9080
 
 # Как в твоём Ingress манифесте (nip.io на IP minikube)
 GRAFANA_INGRESS_HOST := grafana.selm.ag.192.168.49.2.nip.io
@@ -52,23 +62,32 @@ endef
         deps lint render \
         status rollout events values \
         logs check eureka-apps \
-        obs-check vm-check loki-check tempo-check grafana-svc-check grafana-ingress-check
+        obs-check vm-check loki-check tempo-check grafana-svc-check grafana-ingress-check grafana-health-check promtail-check
 
 help:
 	@echo "Targets:"
-	@echo "  make up           - Установить/обновить базовый стек (без observability)"
-	@echo "  make obs-on       - Включить observability (overlay values)"
-	@echo "  make obs-off      - Выключить observability (вернуться к base values)"
-	@echo "  make status       - Показать состояние ресурсов"
-	@echo "  make rollout      - Подождать rollout всех Deployments"
-	@echo "  make check        - Быстрая проверка Eureka (HTTP 200 на /)"
-	@echo "  make eureka-apps  - Проверка регистрации основных приложений в Eureka"
-	@echo "  make obs-check    - Smoke checks observability endpoints"
-	@echo "  make logs         - Логи api-gateway (tail)"
-	@echo "  make events       - Последние события в namespace"
-	@echo "  make values       - Показать user-supplied values текущего релиза"
-	@echo "  make down         - Удалить релиз Helm (оставить namespace)"
-	@echo "  make clean        - Полная очистка: удалить namespace целиком"
+	@echo "  make up                - Установить/обновить базовый стек (без observability)"
+	@echo "  make obs-on            - Включить observability (overlay values)"
+	@echo "  make obs-off           - Выключить observability (вернуться к base values)"
+	@echo "  make status            - Показать состояние ресурсов"
+	@echo "  make rollout           - Подождать rollout всех Deployments"
+	@echo "  make check             - Быстрая проверка Eureka (HTTP 200 на /)"
+	@echo "  make eureka-apps       - Проверка регистрации основных приложений в Eureka"
+	@echo "  make obs-check         - Smoke checks observability endpoints"
+	@echo "  make logs              - Логи api-gateway (tail)"
+	@echo "  make events            - Последние события в namespace"
+	@echo "  make values            - Показать user-supplied values текущего релиза"
+	@echo "  make down              - Удалить релиз Helm (оставить namespace)"
+	@echo "  make clean             - Полная очистка: удалить namespace целиком"
+	@echo ""
+	@echo "Observability checks (can be called individually):"
+	@echo "  make vm-check"
+	@echo "  make loki-check"
+	@echo "  make tempo-check"
+	@echo "  make grafana-svc-check"
+	@echo "  make grafana-health-check"
+	@echo "  make grafana-ingress-check"
+	@echo "  make promtail-check"
 
 
 # ==============================================================================
@@ -199,7 +218,7 @@ eureka-apps:
 # Observability smoke checks
 # ==============================================================================
 
-obs-check: vm-check loki-check tempo-check grafana-svc-check grafana-ingress-check
+obs-check: vm-check loki-check tempo-check grafana-svc-check grafana-health-check grafana-ingress-check promtail-check
 	@echo "OK: observability basic checks passed"
 
 vm-check:
@@ -209,6 +228,30 @@ vm-check:
 loki-check:
 	# Loki: /ready — стандартный readiness endpoint (200)
 	$(call KUBE_CURL, curl -fsS -o /dev/null http://$(LOKI_SVC):$(LOKI_PORT)/ready)
+
+# Loki: проверка, что в Loki реально есть логи (query_range за последние 5 минут)
+# Требования:
+# - Loki доступен по сервису $(LOKI_SVC):$(LOKI_PORT)
+# - Promtail пушит логи с label app и namespace (у тебя это уже так)
+loki-logs-check:
+	@set -e; \
+	  echo "Checking Loki has logs for app=selmag-api-gateway (last 5m)..."; \
+	  kubectl -n $(NAMESPACE) run tmp-curl --rm -i --restart=Never --image=curlimages/curl -- \
+	    sh -lc 'set -e; \
+	      end=$$(date +%s); start=$$((end-300)); \
+	      query="{app=\"selmag-api-gateway\",namespace=\"$(NAMESPACE)\"}"; \
+	      resp=$$(curl -fsS --get \
+	        --data-urlencode "query=$$query" \
+	        --data-urlencode "start=$${start}000000000" \
+	        --data-urlencode "end=$${end}000000000" \
+	        --data-urlencode "limit=50" \
+	        http://$(LOKI_SVC):$(LOKI_PORT)/loki/api/v1/query_range); \
+	      echo "$$resp" | grep -Eq "\"status\"[[:space:]]*:[[:space:]]*\"success\"" || { \
+	        echo "ERROR: Loki API did not return success"; echo "$$resp"; exit 1; }; \
+	      echo "$$resp" | grep -Eq "\"result\"[[:space:]]*:[[:space:]]*\\[[[:space:]]*\\]" && { \
+	        echo "ERROR: Loki returned empty result (no logs found in last 5m)"; echo "$$resp"; exit 1; }; \
+	      echo "OK: Loki returned non-empty result (logs exist)"; \
+	    '
 
 tempo-check:
 	# Tempo: /ready — стандартный readiness endpoint (200)
@@ -221,6 +264,10 @@ grafana-svc-check:
 	  test "$$code" = "200" -o "$$code" = "302" \
 	)
 
+grafana-health-check:
+	# Grafana /api/health: обычно отдаёт JSON со статусом (без авторизации по умолчанию).
+	$(call KUBE_CURL, curl -fsS http://$(GRAFANA_SVC):$(GRAFANA_PORT)/api/health)
+
 grafana-ingress-check:
 	# Grafana по ingress: также допускаем 200/302.
 	@code=$$(curl -sS -o /dev/null -w "%{http_code}" http://$(GRAFANA_INGRESS_HOST)/ || true); \
@@ -230,3 +277,24 @@ grafana-ingress-check:
 	    echo "Grafana ingress FAIL (HTTP $$code)"; \
 	    exit 1; \
 	  fi
+
+promtail-check:
+	@set -e; \
+	  kubectl -n $(NAMESPACE) get ds/$(PROMTAIL_DS) >/dev/null; \
+	  kubectl -n $(NAMESPACE) rollout status ds/$(PROMTAIL_DS) --timeout=180s; \
+	  pod_ip=$$(kubectl -n $(NAMESPACE) get pod -l $(PROMTAIL_LABEL) -o jsonpath='{.items[0].status.podIP}'); \
+	  if [ -z "$$pod_ip" ]; then echo "ERROR: Promtail pod IP is empty"; exit 1; fi; \
+	  echo "Promtail pod IP: $$pod_ip"; \
+	  \
+	  echo "Checking Promtail /metrics (must be 200)..."; \
+	  kubectl -n $(NAMESPACE) run tmp-curl --rm -i --restart=Never --image=curlimages/curl -- \
+	    sh -lc "curl -fsS -o /dev/null http://$$pod_ip:$(PROMTAIL_PORT)/metrics"; \
+	  echo "Promtail /metrics OK"; \
+	  \
+	  echo "Checking Promtail /ready (informational, may be 500 until first logs are tailed)..."; \
+	  kubectl -n $(NAMESPACE) run tmp-curl --rm -i --restart=Never --image=curlimages/curl -- \
+	    sh -lc "code=\$$(curl -sS -o /dev/null -w '%{http_code}' http://$$pod_ip:$(PROMTAIL_PORT)/ready || true); \
+	           echo \"Promtail /ready HTTP \$$code\"; \
+	           if [ \"\$$code\" != \"200\" ]; then \
+	             echo \"NOTE: /ready is not 200 yet. This can be normal if Promtail has not started tailing any logs.\"; \
+	           fi"

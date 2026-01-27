@@ -1,0 +1,21 @@
+enabled: true
+
+image:
+  repository: grafana/promtail
+  tag: "2.9.4"
+  pullPolicy: IfNotPresent
+
+# Куда слать логи
+loki:
+  serviceName: selmag-loki-svc
+  port: 3100
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+  name: "selmag-promtail-service-account-name"
+
+config:
+  logLevel: info

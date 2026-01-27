@@ -61,3 +61,6 @@ tempo:
 
 loki:
   enabled: false
+
+promtail:
+  enabled: false

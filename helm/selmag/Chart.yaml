@@ -80,3 +80,8 @@ dependencies:
     version: 0.1.0
     repository: "file://subcharts/observability/loki"
     condition: loki.enabled
+
+  - name: promtail
+    version: 0.1.0
+    repository: "file://subcharts/observability/promtail"
+    condition: promtail.enabled
