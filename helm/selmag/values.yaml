@@ -42,7 +42,7 @@ feedback-service:
   enabled: true
 
 customer-app:
-  enabled: false
+  enabled: true
 
 manager-app:
   enabled: true
