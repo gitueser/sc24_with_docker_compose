@@ -13,7 +13,7 @@ spec:
       releaseName: selmag
       valueFiles:
         - values.yaml
-        - values-observability.yaml
+#        - values-observability.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: selmag-helm
