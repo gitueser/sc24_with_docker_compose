@@ -1,15 +1,34 @@
 # ==============================================================================
 # Selmag local k8s (minikube/WSL2) workflow via Helm umbrella chart
 #
-# Основная идея:
-# - Всегда деплоим через Helm: helm upgrade --install
-# - Observability включаем/выключаем overlay values-файлом
-# - Проверки делаем простыми smoke-check'ами (curl внутри кластера и/или через ingress)
+# Базовый workflow:
+#   make up              - базовый стек (без observability)
+#   make obs-on          - включить observability
+#   make obs-off         - выключить observability
 #
-# Best practices:
-# - Всегда держим зависимости Helm в sync:
-#   любые изменения Chart.yaml -> helm dependency update
-# - deps -> lint (для umbrella chart иначе будет warning о missing dependencies)
+# Частые операции по конкретному сервису (универсально через SVC=...):
+#   make svc-info    SVC=feedback-service
+#   make svc-status  SVC=feedback-service
+#   make svc-pods    SVC=feedback-service
+#   make svc-logs    SVC=feedback-service [LINES=200] [FOLLOW=1]
+#   make svc-restart SVC=feedback-service
+#   make svc-rollout SVC=feedback-service
+#   make svc-stop    SVC=feedback-service      # deploy/sts -> scale 0; ds -> delete
+#   make svc-start   SVC=feedback-service      # deploy/sts -> scale back to default replicas
+#   make svc-delete  SVC=feedback-service      # delete workload (Helm потом вернёт при upgrade)
+#   make svc-describe SVC=feedback-service     # describe первого pod по app-label
+#
+# Алиасы без SVC (для всех сервисов ниже):
+#   make feedback-service-restart
+#   make feedback-service-logs
+#   make feedback-service-stop
+#   ...
+#
+# Важно:
+# - Все команды "svc-*" используют стабильные имена workload’ов (Deployment/StatefulSet/DaemonSet),
+#   НЕ зависят от pod-template-hash’ей.
+# - Для DaemonSet "stop" реализован как delete ds/<name> (у DS нет scale).
+#   Вернуть DS обратно: make obs-on (или helm upgrade как у тебя).
 # ==============================================================================
 
 NAMESPACE := selmag-helm
@@ -40,29 +59,146 @@ PROMTAIL_PORT := 9080
 GRAFANA_INGRESS_HOST := grafana.selm.ag.192.168.49.2.nip.io
 
 # ==============================================================================
-# Внутренняя "функция" make для запуска curl внутри namespace.
-# Зачем:
-# - проверки ClusterIP/DNS стабильны и не зависят от WSL/Windows networking
-# - не нужно делать port-forward
-# Как работает:
-# - kubectl run создаёт одноразовый pod tmp-curl
-# - curl выполняется внутри pod'а
-# - pod удаляется автоматически (--rm)
+# Make "helpers"
 # ==============================================================================
+
+# curl inside cluster (stable for ClusterIP/DNS)
 define KUBE_CURL
 kubectl -n $(NAMESPACE) run tmp-curl --rm -i --restart=Never --image=curlimages/curl -- \
   sh -lc '$(1)'
 endef
 
+# upper-case helper (used to map SVC -> variables)
+define UC
+$(shell echo $(1) | tr '[:lower:]' '[:upper:]')
+endef
+
+# Convert "feedback-service" -> "FEEDBACK_SERVICE"
+SVC_KEY := $(call UC,$(subst -,_,$(SVC)))
+
+# Defaults for logs
+LINES ?= 200
+FOLLOW ?= 0
+
+# ==============================================================================
+# Inventory (from your kubectl outputs)
+# Canonical SVC ids:
+#   admin-server, api-gateway, catalogue-service, config-server, customer-app,
+#   eureka-server, feedback-service, keycloak,
+#   catalogue-db, feedback-db,
+#   grafana, loki, tempo, victoria-metrics,
+#   promtail
+# ==============================================================================
+
+SERVICES := \
+  admin-server api-gateway catalogue-service config-server customer-app eureka-server feedback-service \
+  keycloak manager-app \
+  catalogue-db feedback-db \
+  grafana loki tempo victoria-metrics promtail
+
+# --- Deployments ---
+ADMIN_SERVER_KIND := deploy
+ADMIN_SERVER_NAME := selmag-admin-server-deployment
+ADMIN_SERVER_APP  := selmag-admin-server
+ADMIN_SERVER_REPLICAS := 1
+
+API_GATEWAY_KIND := deploy
+API_GATEWAY_NAME := selmag-api-gateway-deployment
+API_GATEWAY_APP  := selmag-api-gateway
+API_GATEWAY_REPLICAS := 1
+
+CATALOGUE_SERVICE_KIND := deploy
+CATALOGUE_SERVICE_NAME := selmag-catalogue-service-deployment
+CATALOGUE_SERVICE_APP  := selmag-catalogue-service
+CATALOGUE_SERVICE_REPLICAS := 3
+
+CONFIG_SERVER_KIND := deploy
+CONFIG_SERVER_NAME := selmag-config-server-deployment
+CONFIG_SERVER_APP  := selmag-config-server
+CONFIG_SERVER_REPLICAS := 1
+
+CUSTOMER_APP_KIND := deploy
+CUSTOMER_APP_NAME := selmag-customer-app-deployment
+CUSTOMER_APP_APP  := selmag-customer-app
+CUSTOMER_APP_REPLICAS := 1
+
+EUREKA_SERVER_KIND := deploy
+EUREKA_SERVER_NAME := selmag-eureka-server-deployment
+EUREKA_SERVER_APP  := selmag-eureka-server
+EUREKA_SERVER_REPLICAS := 1
+
+FEEDBACK_SERVICE_KIND := deploy
+FEEDBACK_SERVICE_NAME := selmag-feedback-service-deployment
+FEEDBACK_SERVICE_APP  := selmag-feedback-service
+FEEDBACK_SERVICE_REPLICAS := 1
+
+MANAGER_APP_KIND := deploy
+MANAGER_APP_NAME := selmag-manager-app-deployment
+MANAGER_APP_APP  := selmag-manager-app
+MANAGER_APP_REPLICAS := 1
+
+KEYCLOAK_KIND := deploy
+KEYCLOAK_NAME := selmag-keycloak
+KEYCLOAK_APP  := selmag-keycloak
+KEYCLOAK_REPLICAS := 1
+
+GRAFANA_KIND := deploy
+GRAFANA_NAME := selmag-grafana-deployment
+GRAFANA_APP  := selmag-grafana
+GRAFANA_REPLICAS := 1
+
+LOKI_KIND := deploy
+LOKI_NAME := selmag-loki-deployment
+LOKI_APP  := selmag-loki
+LOKI_REPLICAS := 1
+
+TEMPO_KIND := deploy
+TEMPO_NAME := selmag-tempo-deployment
+TEMPO_APP  := selmag-tempo
+TEMPO_REPLICAS := 1
+
+VICTORIA_METRICS_KIND := deploy
+VICTORIA_METRICS_NAME := selmag-victoria-metrics-deployment
+VICTORIA_METRICS_APP  := selmag-victoria-metrics
+VICTORIA_METRICS_REPLICAS := 1
+
+# --- StatefulSets ---
+CATALOGUE_DB_KIND := sts
+CATALOGUE_DB_NAME := selmag-catalogue-db
+CATALOGUE_DB_APP  := selmag-catalogue-db
+CATALOGUE_DB_REPLICAS := 1
+
+FEEDBACK_DB_KIND := sts
+FEEDBACK_DB_NAME := selmag-feedback-db
+FEEDBACK_DB_APP  := selmag-feedback-db
+FEEDBACK_DB_REPLICAS := 1
+
+# --- DaemonSet ---
+PROMTAIL_KIND := ds
+PROMTAIL_NAME := selmag-promtail
+PROMTAIL_APP  := selmag-promtail
+PROMTAIL_REPLICAS := 1
+
+# ==============================================================================
+# Targets
+# ==============================================================================
 
 .PHONY: help \
-        up obs-on obs-off \
-        install upgrade \
-        down clean namespace \
+        up obs-on obs-off install upgrade down clean namespace \
         deps lint render \
         status rollout events values \
         logs check eureka-apps \
-        obs-check vm-check loki-check tempo-check grafana-svc-check grafana-ingress-check grafana-health-check promtail-check
+        obs-check vm-check loki-check loki-logs-check tempo-check grafana-svc-check grafana-ingress-check grafana-health-check promtail-check \
+        svc-list svc-info svc-status svc-pods svc-logs svc-restart svc-rollout svc-stop svc-start svc-delete svc-describe \
+        $(addsuffix -status,$(SERVICES)) \
+        $(addsuffix -pods,$(SERVICES)) \
+        $(addsuffix -logs,$(SERVICES)) \
+        $(addsuffix -restart,$(SERVICES)) \
+        $(addsuffix -rollout,$(SERVICES)) \
+        $(addsuffix -stop,$(SERVICES)) \
+        $(addsuffix -start,$(SERVICES)) \
+        $(addsuffix -delete,$(SERVICES)) \
+        $(addsuffix -describe,$(SERVICES))
 
 help:
 	@echo "Targets:"
@@ -80,14 +216,27 @@ help:
 	@echo "  make down              - Удалить релиз Helm (оставить namespace)"
 	@echo "  make clean             - Полная очистка: удалить namespace целиком"
 	@echo ""
-	@echo "Observability checks (can be called individually):"
-	@echo "  make vm-check"
-	@echo "  make loki-check"
-	@echo "  make tempo-check"
-	@echo "  make grafana-svc-check"
-	@echo "  make grafana-health-check"
-	@echo "  make grafana-ingress-check"
-	@echo "  make promtail-check"
+	@echo "Per-service ops (generic):"
+	@echo "  make svc-list"
+	@echo "  make svc-info    SVC=<id>"
+	@echo "  make svc-status  SVC=<id>"
+	@echo "  make svc-pods    SVC=<id>"
+	@echo "  make svc-logs    SVC=<id> [LINES=200] [FOLLOW=1]"
+	@echo "  make svc-restart SVC=<id>"
+	@echo "  make svc-rollout SVC=<id>"
+	@echo "  make svc-stop    SVC=<id>"
+	@echo "  make svc-start   SVC=<id>"
+	@echo "  make svc-delete  SVC=<id>"
+	@echo "  make svc-describe SVC=<id>"
+	@echo ""
+	@echo "Example:"
+	@echo "  make svc-restart SVC=feedback-service"
+	@echo "  make svc-logs    SVC=feedback-service FOLLOW=1"
+	@echo ""
+	@echo "Aliases (without SVC=...):"
+	@echo "  <service>-restart / <service>-logs / <service>-stop / <service>-start / <service>-delete / <service>-status / <service>-pods"
+	@echo "Services:"
+	@echo "  $(SERVICES)"
 
 
 # ==============================================================================
@@ -95,17 +244,12 @@ help:
 # ==============================================================================
 
 namespace:
-	# Создаём namespace, если его нет (idempotent)
 	kubectl get ns $(NAMESPACE) >/dev/null 2>&1 || kubectl create ns $(NAMESPACE)
 
 clean:
-	# Полная очистка окружения (удаляет ВСЕ ресурсы внутри namespace)
-	# Важно: удаление namespace удалит и PVC/секреты/конфиги в нём.
 	kubectl delete ns $(NAMESPACE) --ignore-not-found
 
 down:
-	# Удаляем Helm-релиз (namespace при этом остаётся)
-	# Это "мягче", чем clean: можно быстро переустановить без пересоздания ns.
 	helm uninstall $(RELEASE) -n $(NAMESPACE) || true
 
 
@@ -114,18 +258,12 @@ down:
 # ==============================================================================
 
 deps:
-	# Подтягиваем/обновляем зависимости umbrella chart.
-	# Для file:// зависимостей Helm пакует subcharts и кладёт их в helm/selmag/charts/
 	helm dependency update $(CHART)
 
 lint: deps
-	# Линтим уже "собранный" chart вместе с зависимостями.
-	# Это убирает warning вида "chart directory is missing these dependencies ..."
 	helm lint $(CHART)
 
 render: deps
-	# Рендер шаблонов в YAML без применения в кластер.
-	# Полезно для отладки: можно посмотреть итоговые манифесты.
 	helm template $(RELEASE) $(CHART) -n $(NAMESPACE) -f $(VALUES_BASE) > /tmp/selmag.rendered.yaml
 	@echo "Rendered to /tmp/selmag.rendered.yaml"
 
@@ -138,9 +276,6 @@ up: lint namespace install status rollout
 	@echo "Base stack is up"
 
 install:
-	# Установка/обновление базового стека (без observability)
-	# --atomic: если что-то не поднялось в таймаут — Helm откатит релиз
-	# --timeout: общий таймаут на установку (включая ожидание готовности)
 	helm upgrade --install $(RELEASE) $(CHART) \
 	  -n $(NAMESPACE) \
 	  -f $(VALUES_BASE) \
@@ -150,10 +285,6 @@ upgrade: install
 	@true
 
 obs-on: lint namespace
-	# Включаем observability:
-	# - подключаем overlay values файл
-	# - профили observability для бизнес-сервисов задаются ТОЛЬКО в overlay,
-	#   поэтому obs-off возвращает их обратно.
 	helm upgrade $(RELEASE) $(CHART) \
 	  -n $(NAMESPACE) \
 	  -f $(VALUES_BASE) \
@@ -164,9 +295,6 @@ obs-on: lint namespace
 	@echo "Observability is ON"
 
 obs-off: lint namespace
-	# Выключаем observability:
-	# - деплоим только base values
-	# - observability чарты выключаются, профили у сервисов откатываются на base
 	helm upgrade $(RELEASE) $(CHART) \
 	  -n $(NAMESPACE) \
 	  -f $(VALUES_BASE) \
@@ -181,33 +309,24 @@ obs-off: lint namespace
 # ==============================================================================
 
 status:
-	# Срез по основным типам ресурсов
-	kubectl -n $(NAMESPACE) get deploy,sts,po,svc,ingress,pvc,cm,secret
+	kubectl -n $(NAMESPACE) get deploy,sts,ds,po,svc,ingress,pvc,cm,secret
 
 rollout:
-	# Ожидаем rollout ВСЕХ deployments в namespace.
-	# Примечание: это не "probe-ready" проверка приложений, а проверка, что Deployment завершил rollout.
 	kubectl -n $(NAMESPACE) get deploy -o name | xargs -n1 kubectl -n $(NAMESPACE) rollout status --timeout=300s
 
 events:
-	# Последние события (часто показывает причины рестартов/failed probes)
 	kubectl -n $(NAMESPACE) get events --sort-by=.lastTimestamp | tail -n 50
 
 values:
-	# Текущие user-supplied values, которые реально применены к релизу
 	helm get values $(RELEASE) -n $(NAMESPACE)
 
 logs:
-	# Быстрый tail логов gateway (как центральной точки входа)
 	kubectl -n $(NAMESPACE) logs deploy/selmag-api-gateway-deployment --tail=200
 
 check:
-	# Быстрая проверка доступности Eureka по ClusterIP (200 на /)
 	$(call KUBE_CURL, curl -sS -o /dev/null -w "%{http_code}\n" http://selmag-eureka-server-svc:8761/)
 
 eureka-apps:
-	# Проверяем, что основные приложения зарегистрированы в Eureka.
-	# Выводит только совпавшие строки (если ничего не вывел — стоит смотреть логи сервисов/еврику).
 	$(call KUBE_CURL, \
 	  curl -sS http://selmag-eureka-server-svc:8761/eureka/apps | \
 	  grep -E "SELMAG-(CATALOGUE-SERVICE|FEEDBACK-SERVICE|CUSTOMER-APP|MANAGER-APP|API-GATEWAY)" -n || true \
@@ -218,21 +337,56 @@ eureka-apps:
 # Observability smoke checks
 # ==============================================================================
 
-obs-check: vm-check loki-check tempo-check grafana-svc-check grafana-health-check grafana-ingress-check promtail-check
+obs-check: vm-check loki-check tempo-check grafana-svc-check grafana-health-check grafana-ingress-check promtail-check loki-logs-check
 	@echo "OK: observability basic checks passed"
 
 vm-check:
-	# VictoriaMetrics: Prometheus-compatible endpoint buildinfo должен отвечать 200
 	$(call KUBE_CURL, curl -fsS -o /dev/null http://$(VM_SVC):$(VM_PORT)/api/v1/status/buildinfo)
 
 loki-check:
-	# Loki: /ready — стандартный readiness endpoint (200)
 	$(call KUBE_CURL, curl -fsS -o /dev/null http://$(LOKI_SVC):$(LOKI_PORT)/ready)
 
+tempo-check:
+	$(call KUBE_CURL, curl -fsS -o /dev/null http://$(TEMPO_SVC):$(TEMPO_HTTP_PORT)/ready)
+
+grafana-svc-check:
+	$(call KUBE_CURL, \
+	  code=$$(curl -sS -o /dev/null -w "%{http_code}" http://$(GRAFANA_SVC):$(GRAFANA_PORT)/); \
+	  test "$$code" = "200" -o "$$code" = "302" \
+	)
+
+grafana-health-check:
+	$(call KUBE_CURL, curl -fsS http://$(GRAFANA_SVC):$(GRAFANA_PORT)/api/health)
+
+grafana-ingress-check:
+	@code=$$(curl -sS -o /dev/null -w "%{http_code}" http://$(GRAFANA_INGRESS_HOST)/ || true); \
+	  if [ "$$code" = "200" ] || [ "$$code" = "302" ]; then \
+	    echo "Grafana ingress OK (HTTP $$code)"; \
+	  else \
+	    echo "Grafana ingress FAIL (HTTP $$code)"; \
+	    exit 1; \
+	  fi
+
+promtail-check:
+	@set -e; \
+	  kubectl -n $(NAMESPACE) get ds/$(PROMTAIL_DS) >/dev/null; \
+	  kubectl -n $(NAMESPACE) rollout status ds/$(PROMTAIL_DS) --timeout=180s; \
+	  pod_ip=$$(kubectl -n $(NAMESPACE) get pod -l $(PROMTAIL_LABEL) -o jsonpath='{.items[0].status.podIP}'); \
+	  if [ -z "$$pod_ip" ]; then echo "ERROR: Promtail pod IP is empty"; exit 1; fi; \
+	  echo "Promtail pod IP: $$pod_ip"; \
+	  echo "Checking Promtail /metrics (must be 200)..."; \
+	  kubectl -n $(NAMESPACE) run tmp-curl --rm -i --restart=Never --image=curlimages/curl -- \
+	    sh -lc "curl -fsS -o /dev/null http://$$pod_ip:$(PROMTAIL_PORT)/metrics"; \
+	  echo "Promtail /metrics OK"; \
+	  echo "Checking Promtail /ready (informational)..."; \
+	  kubectl -n $(NAMESPACE) run tmp-curl --rm -i --restart=Never --image=curlimages/curl -- \
+	    sh -lc "code=\$$(curl -sS -o /dev/null -w '%{http_code}' http://$$pod_ip:$(PROMTAIL_PORT)/ready || true); \
+	           echo \"Promtail /ready HTTP \$$code\"; \
+	           if [ \"\$$code\" != \"200\" ]; then \
+	             echo \"NOTE: /ready is not 200 yet. This can be normal until Promtail starts tailing logs.\"; \
+	           fi"
+
 # Loki: проверка, что в Loki реально есть логи (query_range за последние 5 минут)
-# Требования:
-# - Loki доступен по сервису $(LOKI_SVC):$(LOKI_PORT)
-# - Promtail пушит логи с label app и namespace (у тебя это уже так)
 loki-logs-check:
 	@set -e; \
 	  echo "Checking Loki has logs for app=selmag-api-gateway (last 5m)..."; \
@@ -253,48 +407,144 @@ loki-logs-check:
 	      echo "OK: Loki returned non-empty result (logs exist)"; \
 	    '
 
-tempo-check:
-	# Tempo: /ready — стандартный readiness endpoint (200)
-	$(call KUBE_CURL, curl -fsS -o /dev/null http://$(TEMPO_SVC):$(TEMPO_HTTP_PORT)/ready)
 
-grafana-svc-check:
-	# Grafana по service: часто отдаёт редирект на /login (302). Считаем 200 или 302 успехом.
-	$(call KUBE_CURL, \
-	  code=$$(curl -sS -o /dev/null -w "%{http_code}" http://$(GRAFANA_SVC):$(GRAFANA_PORT)/); \
-	  test "$$code" = "200" -o "$$code" = "302" \
-	)
+# ==============================================================================
+# Per-service operations (generic via SVC=...)
+# ==============================================================================
 
-grafana-health-check:
-	# Grafana /api/health: обычно отдаёт JSON со статусом (без авторизации по умолчанию).
-	$(call KUBE_CURL, curl -fsS http://$(GRAFANA_SVC):$(GRAFANA_PORT)/api/health)
+svc-list:
+	@echo "$(SERVICES)"
 
-grafana-ingress-check:
-	# Grafana по ingress: также допускаем 200/302.
-	@code=$$(curl -sS -o /dev/null -w "%{http_code}" http://$(GRAFANA_INGRESS_HOST)/ || true); \
-	  if [ "$$code" = "200" ] || [ "$$code" = "302" ]; then \
-	    echo "Grafana ingress OK (HTTP $$code)"; \
+svc-info:
+	@set -e; \
+	  if [ -z "$(SVC)" ]; then echo "ERROR: set SVC=<one of: $(SERVICES)>"; exit 2; fi; \
+	  kind="$($(SVC_KEY)_KIND)"; name="$($(SVC_KEY)_NAME)"; app="$($(SVC_KEY)_APP)"; rep="$($(SVC_KEY)_REPLICAS)"; \
+	  if [ -z "$$kind" ] || [ -z "$$name" ] || [ -z "$$app" ]; then \
+	    echo "ERROR: unknown SVC='$(SVC)'. Allowed: $(SERVICES)"; exit 2; \
+	  fi; \
+	  echo "SVC=$(SVC)"; \
+	  echo "  kind=$$kind"; \
+	  echo "  name=$$name"; \
+	  echo "  app=$$app"; \
+	  echo "  replicas(default)=$$rep"
+
+svc-status:
+	@set -e; \
+	  kind="$($(SVC_KEY)_KIND)"; name="$($(SVC_KEY)_NAME)"; \
+	  if [ -z "$$kind" ] || [ -z "$$name" ]; then echo "ERROR: unknown SVC='$(SVC)'"; exit 2; fi; \
+	  kubectl -n $(NAMESPACE) get $$kind/$$name -o wide
+
+svc-pods:
+	@set -e; \
+	  app="$($(SVC_KEY)_APP)"; \
+	  if [ -z "$$app" ]; then echo "ERROR: unknown SVC='$(SVC)'"; exit 2; fi; \
+	  kubectl -n $(NAMESPACE) get pods -l app=$$app -o wide
+
+svc-logs:
+	@set -e; \
+	  app="$($(SVC_KEY)_APP)"; \
+	  if [ -z "$$app" ]; then echo "ERROR: unknown SVC='$(SVC)'"; exit 2; fi; \
+	  if [ "$(FOLLOW)" = "1" ]; then \
+	    kubectl -n $(NAMESPACE) logs -l app=$$app --tail=$(LINES) -f; \
 	  else \
-	    echo "Grafana ingress FAIL (HTTP $$code)"; \
-	    exit 1; \
+	    kubectl -n $(NAMESPACE) logs -l app=$$app --tail=$(LINES); \
 	  fi
 
-promtail-check:
+svc-rollout:
 	@set -e; \
-	  kubectl -n $(NAMESPACE) get ds/$(PROMTAIL_DS) >/dev/null; \
-	  kubectl -n $(NAMESPACE) rollout status ds/$(PROMTAIL_DS) --timeout=180s; \
-	  pod_ip=$$(kubectl -n $(NAMESPACE) get pod -l $(PROMTAIL_LABEL) -o jsonpath='{.items[0].status.podIP}'); \
-	  if [ -z "$$pod_ip" ]; then echo "ERROR: Promtail pod IP is empty"; exit 1; fi; \
-	  echo "Promtail pod IP: $$pod_ip"; \
-	  \
-	  echo "Checking Promtail /metrics (must be 200)..."; \
-	  kubectl -n $(NAMESPACE) run tmp-curl --rm -i --restart=Never --image=curlimages/curl -- \
-	    sh -lc "curl -fsS -o /dev/null http://$$pod_ip:$(PROMTAIL_PORT)/metrics"; \
-	  echo "Promtail /metrics OK"; \
-	  \
-	  echo "Checking Promtail /ready (informational, may be 500 until first logs are tailed)..."; \
-	  kubectl -n $(NAMESPACE) run tmp-curl --rm -i --restart=Never --image=curlimages/curl -- \
-	    sh -lc "code=\$$(curl -sS -o /dev/null -w '%{http_code}' http://$$pod_ip:$(PROMTAIL_PORT)/ready || true); \
-	           echo \"Promtail /ready HTTP \$$code\"; \
-	           if [ \"\$$code\" != \"200\" ]; then \
-	             echo \"NOTE: /ready is not 200 yet. This can be normal if Promtail has not started tailing any logs.\"; \
-	           fi"
+	  kind="$($(SVC_KEY)_KIND)"; name="$($(SVC_KEY)_NAME)"; \
+	  if [ -z "$$kind" ] || [ -z "$$name" ]; then echo "ERROR: unknown SVC='$(SVC)'"; exit 2; fi; \
+	  kubectl -n $(NAMESPACE) rollout status $$kind/$$name --timeout=300s
+
+svc-restart:
+	@set -e; \
+	  kind="$($(SVC_KEY)_KIND)"; name="$($(SVC_KEY)_NAME)"; \
+	  if [ -z "$$kind" ] || [ -z "$$name" ]; then echo "ERROR: unknown SVC='$(SVC)'"; exit 2; fi; \
+	  kubectl -n $(NAMESPACE) rollout restart $$kind/$$name; \
+	  kubectl -n $(NAMESPACE) rollout status $$kind/$$name --timeout=300s
+
+# stop/start/delete:
+# - deploy/sts: stop = scale 0, start = scale <default>
+# - ds: stop/delete = kubectl delete ds/<name> (у DS нет scale)
+svc-stop:
+	@set -e; \
+	  kind="$($(SVC_KEY)_KIND)"; name="$($(SVC_KEY)_NAME)"; \
+	  if [ -z "$$kind" ] || [ -z "$$name" ]; then echo "ERROR: unknown SVC='$(SVC)'"; exit 2; fi; \
+	  if [ "$$kind" = "ds" ]; then \
+	    echo "NOTE: DaemonSet has no scale. Deleting ds/$$name"; \
+	    kubectl -n $(NAMESPACE) delete ds/$$name --ignore-not-found; \
+	  else \
+	    kubectl -n $(NAMESPACE) scale $$kind/$$name --replicas=0; \
+	    kubectl -n $(NAMESPACE) get $$kind/$$name -o wide; \
+	  fi
+
+svc-start:
+	@set -e; \
+	  kind="$($(SVC_KEY)_KIND)"; name="$($(SVC_KEY)_NAME)"; rep="$($(SVC_KEY)_REPLICAS)"; \
+	  if [ -z "$$kind" ] || [ -z "$$name" ] || [ -z "$$rep" ]; then echo "ERROR: unknown SVC='$(SVC)'"; exit 2; fi; \
+	  if [ "$$kind" = "ds" ]; then \
+	    echo "ERROR: cannot 'start' DaemonSet via scale. Use: make obs-on (or helm upgrade) to restore ds/$$name"; \
+	    exit 2; \
+	  else \
+	    kubectl -n $(NAMESPACE) scale $$kind/$$name --replicas=$$rep; \
+	    kubectl -n $(NAMESPACE) rollout status $$kind/$$name --timeout=300s; \
+	  fi
+
+svc-delete:
+	@set -e; \
+	  kind="$($(SVC_KEY)_KIND)"; name="$($(SVC_KEY)_NAME)"; \
+	  if [ -z "$$kind" ] || [ -z "$$name" ]; then echo "ERROR: unknown SVC='$(SVC)'"; exit 2; fi; \
+	  kubectl -n $(NAMESPACE) delete $$kind/$$name --ignore-not-found
+
+svc-describe:
+	@set -e; \
+	  app="$($(SVC_KEY)_APP)"; \
+	  if [ -z "$$app" ]; then echo "ERROR: unknown SVC='$(SVC)'"; exit 2; fi; \
+	  pod=$$(kubectl -n $(NAMESPACE) get pods -l app=$$app -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true); \
+	  if [ -z "$$pod" ]; then echo "ERROR: no pods found for app=$$app"; exit 1; fi; \
+	  kubectl -n $(NAMESPACE) describe pod $$pod
+
+
+# ==============================================================================
+# Per-service aliases (no SVC=... required)
+# ==============================================================================
+# Usage:
+#   make feedback-service-restart
+#   make feedback-service-logs FOLLOW=1
+#   make feedback-db-stop
+#   make promtail-delete
+# etc.
+
+define MAKE_SERVICE_ALIASES
+$(1)-info:
+	@$(MAKE) svc-info SVC=$(1)
+
+$(1)-status:
+	@$(MAKE) svc-status SVC=$(1)
+
+$(1)-pods:
+	@$(MAKE) svc-pods SVC=$(1)
+
+$(1)-logs:
+	@$(MAKE) svc-logs SVC=$(1) LINES=$(LINES) FOLLOW=$(FOLLOW)
+
+$(1)-restart:
+	@$(MAKE) svc-restart SVC=$(1)
+
+$(1)-rollout:
+	@$(MAKE) svc-rollout SVC=$(1)
+
+$(1)-stop:
+	@$(MAKE) svc-stop SVC=$(1)
+
+$(1)-start:
+	@$(MAKE) svc-start SVC=$(1)
+
+$(1)-delete:
+	@$(MAKE) svc-delete SVC=$(1)
+
+$(1)-describe:
+	@$(MAKE) svc-describe SVC=$(1)
+endef
+
+$(foreach s,$(SERVICES),$(eval $(call MAKE_SERVICE_ALIASES,$(s))))
