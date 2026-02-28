@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: selmag
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:gitueser/sc24_with_docker_compose.git
+    targetRevision: kubernetes-test-helm
+    path: helm/selmag
+    helm:
+      releaseName: selmag
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: selmag-helm
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m
