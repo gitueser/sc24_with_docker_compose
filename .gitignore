@@ -44,3 +44,4 @@ build/
 
 # Helm packaged charts
 helm/**/charts/*.tgz
+/sealed-secrets-cert.pem
