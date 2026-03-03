@@ -1,5 +1,3 @@
-enabled: true
-
 image:
   repository: grafana/promtail
   tag: "2.9.4"

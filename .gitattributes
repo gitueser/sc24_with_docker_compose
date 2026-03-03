@@ -11,3 +11,6 @@
 *.png    binary
 *.jpg    binary
 *.jar    binary
+
+*.yaml text eol=lf
+*.yml  text eol=lf

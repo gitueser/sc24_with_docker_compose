@@ -1,7 +1,7 @@
 image:
-  repository: host.docker.internal:5000/selmag/feedback-service
-  tag: "24.1.1"
-  pullPolicy: Always
+  repository: ghcr.io/gitueser/selmag/feedback-service
+  tag: "sha-d4ecbba"
+  pullPolicy: IfNotPresent
 
 replicaCount: 1
 

@@ -1,6 +1,6 @@
 image:
-  repository: host.docker.internal:5000/selmag/eureka-server
-  tag: "24.1.1"
+  repository: ghcr.io/gitueser/selmag/eureka-server
+  tag: "sha-d4ecbba"
   pullPolicy: IfNotPresent
 
 replicaCount: 1

@@ -1,5 +1,5 @@
 image:
-  repository: host.docker.internal:5000/selmag/mongo
+  repository: mongo
   tag: "7"
   pullPolicy: IfNotPresent
 
