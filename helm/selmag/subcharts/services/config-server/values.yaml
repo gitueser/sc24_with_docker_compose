@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/gitueser/selmag/config-server
-  tag: "sha-8468a3d"
+  tag: "sha-cdf2043"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
