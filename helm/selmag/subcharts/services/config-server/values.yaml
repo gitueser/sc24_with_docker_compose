@@ -1,7 +1,7 @@
 image:
-  repository: host.docker.internal:5000/selmag/config-server
+  repository: ghcr.io/gitueser/selmag/config-server
   tag: "24.1.1"
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
 
 replicaCount: 1
 

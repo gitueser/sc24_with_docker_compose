@@ -1,7 +1,7 @@
 image:
-  repository: host.docker.internal:5000/selmag/keycloak
+  repository: quay.io/keycloak/keycloak
   tag: "23.0.7"
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
 
 replicaCount: 1
 

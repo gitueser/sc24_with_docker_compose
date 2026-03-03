@@ -1,7 +1,7 @@
 image:
-  repository: host.docker.internal:5000/selmag/api-gateway
+  repository: ghcr.io/gitueser/selmag/api-gateway
   tag: "24.1.1"
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
 
 replicaCount: 1
 

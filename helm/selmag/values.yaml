@@ -1,8 +1,5 @@
 global:
 
-  # Локальный registry контейнер, доступный из pod'ов через host.docker.internal
-  imageRegistry: host.docker.internal:5000
-
   # Общие имена ресурсов, как сейчас в k8s
   configMapName: selmag-config
   secretName: selmag-secret

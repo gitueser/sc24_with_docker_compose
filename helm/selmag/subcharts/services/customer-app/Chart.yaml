@@ -3,4 +3,4 @@ name: customer-app
 description: Selmag customer-app service
 type: application
 version: 0.1.0
-appVersion: "24.1.1"
+appVersion: "0.1.0"
