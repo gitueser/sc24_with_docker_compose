@@ -1,0 +1,118 @@
+name: GitOps CI (build/push + update Helm)
+
+on:
+  push:
+    branches:
+      - ghcr-migration
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: gitueser
+  IMAGE_NAMESPACE: selmag
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      shortsha: ${{ steps.vars.outputs.shortsha }}
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - admin-server
+          - api-gateway
+          - catalogue-service
+          - config-server
+          - customer-app
+          - eureka-server
+          - feedback-service
+          - manager-app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute tags
+        id: vars
+        run: |
+          SHORTSHA="${GITHUB_SHA::7}"
+          echo "shortsha=$SHORTSHA" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-$SHORTSHA" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build jars (once per job, ok for now)
+        run: mvn -B -DskipTests package
+
+      - name: Find exec jar
+        id: jar
+        run: |
+          SVC="${{ matrix.service }}"
+          JAR_PATH="$(ls -1 "$SVC"/target/*-exec.jar | head -n 1)"
+          if [ -z "$JAR_PATH" ]; then
+            echo "No *-exec.jar found for $SVC" >&2
+            ls -la "$SVC/target" || true
+            exit 1
+          fi
+          echo "jar=$JAR_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        run: |
+          TAG="${{ steps.vars.outputs.tag }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}:${TAG}"
+
+          docker build \
+            -f docker/Dockerfile \
+            --build-arg JAR_FILE="${{ steps.jar.outputs.jar }}" \
+            -t "$IMAGE" \
+            .
+
+          docker push "$IMAGE"
+
+  update-helm-tags-pr:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update image tags in Helm values
+        run: |
+          TAG="sha-${{ needs.build-and-push.outputs.shortsha }}"
+
+          for svc in admin-server api-gateway catalogue-service config-server customer-app eureka-server feedback-service manager-app; do
+            file="helm/selmag/subcharts/services/${svc}/values.yaml"
+            echo "Updating $file -> tag: $TAG"
+            # заменить первое вхождение tag: "..." на tag: "sha-...."
+            sed -i -E "0,/^[[:space:]]*tag:[[:space:]]*\".*\"/s//  tag: \"${TAG}\"/" "$file"
+          done
+
+      - name: Create PR with updated tags
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: "ci/update-image-tags-${{ needs.build-and-push.outputs.shortsha }}"
+          title: "Update images to sha-${{ needs.build-and-push.outputs.shortsha }}"
+          commit-message: "Update Helm image tags to sha-${{ needs.build-and-push.outputs.shortsha }}"
+          body: |
+            This PR updates Helm values to point services to images tagged with:
+            sha-${{ needs.build-and-push.outputs.shortsha }}
+          labels: |
+            automated
