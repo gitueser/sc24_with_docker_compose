@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/gitueser/selmag/config-server
-  tag: "sha-f939263"
+  tag: "sha-da4518d"
   pullPolicy: IfNotPresent
 
 replicaCount: 1

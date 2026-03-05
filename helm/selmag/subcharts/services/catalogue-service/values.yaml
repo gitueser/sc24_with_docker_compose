@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/gitueser/selmag/catalogue-service
-  tag: "sha-f939263"
+  tag: "sha-da4518d"
   pullPolicy: IfNotPresent
 
 replicaCount: 3
