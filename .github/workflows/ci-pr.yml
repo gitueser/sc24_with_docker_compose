@@ -1,9 +1,9 @@
-name: CI (PR)
+name: CI (PR verify)
 
 on:
   pull_request:
     branches:
-      - ghcr-migration
+      - kubernetes-test-helm
 
 permissions:
   contents: read
