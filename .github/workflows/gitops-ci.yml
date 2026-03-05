@@ -3,7 +3,11 @@ name: GitOps CI (build/push + update Helm)
 on:
   push:
     branches:
-      - ghcr-migration
+      - kubernetes-test-helm
+    # ВАЖНО: если в merge попали только изменения helm/** (например, PR от бота с тегами),
+    # то workflow НЕ запустится => нет бесконечного цикла.
+    paths-ignore:
+      - "helm/**"
 
 permissions:
   contents: write
@@ -12,27 +16,15 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  OWNER: gitueser
+  OWNER: ${{ github.repository_owner }}
   IMAGE_NAMESPACE: selmag
 
 jobs:
-  build-and-push:
+  build-jars:
     runs-on: ubuntu-latest
     outputs:
       shortsha: ${{ steps.vars.outputs.shortsha }}
-    strategy:
-      fail-fast: false
-      matrix:
-        service:
-          - admin-server
-          - api-gateway
-          - catalogue-service
-          - config-server
-          - customer-app
-          - eureka-server
-          - feedback-service
-          - manager-app
-
+      tag: ${{ steps.vars.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,8 +43,42 @@ jobs:
           java-version: "21"
           cache: maven
 
-      - name: Build jars (once per job, ok for now)
+      - name: Build jars
         run: mvn -B -DskipTests package
+
+      - name: Upload exec jars
+        uses: actions/upload-artifact@v4
+        with:
+          name: exec-jars
+          path: |
+            */target/*-exec.jar
+          if-no-files-found: error
+
+  build-and-push:
+    needs: build-jars
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - admin-server
+          - api-gateway
+          - catalogue-service
+          - config-server
+          - customer-app
+          - eureka-server
+          - feedback-service
+          - manager-app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download exec jars
+        uses: actions/download-artifact@v4
+        with:
+          name: exec-jars
+          path: .
 
       - name: Find exec jar
         id: jar
@@ -75,7 +101,7 @@ jobs:
 
       - name: Build and push
         run: |
-          TAG="${{ steps.vars.outputs.tag }}"
+          TAG="${{ needs.build-jars.outputs.tag }}"
           IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}:${TAG}"
 
           docker build \
@@ -87,7 +113,7 @@ jobs:
           docker push "$IMAGE"
 
   update-helm-tags-pr:
-    needs: build-and-push
+    needs: [build-jars, build-and-push]
     runs-on: ubuntu-latest
 
     steps:
@@ -96,23 +122,23 @@ jobs:
 
       - name: Update image tags in Helm values
         run: |
-          TAG="sha-${{ needs.build-and-push.outputs.shortsha }}"
+          TAG="${{ needs.build-jars.outputs.tag }}"
 
           for svc in admin-server api-gateway catalogue-service config-server customer-app eureka-server feedback-service manager-app; do
             file="helm/selmag/subcharts/services/${svc}/values.yaml"
             echo "Updating $file -> tag: $TAG"
-            # заменить первое вхождение tag: "..." на tag: "sha-...."
             sed -i -E "0,/^[[:space:]]*tag:[[:space:]]*\".*\"/s//  tag: \"${TAG}\"/" "$file"
           done
 
       - name: Create PR with updated tags
         uses: peter-evans/create-pull-request@v6
         with:
-          branch: "ci/update-image-tags-${{ needs.build-and-push.outputs.shortsha }}"
-          title: "Update images to sha-${{ needs.build-and-push.outputs.shortsha }}"
-          commit-message: "Update Helm image tags to sha-${{ needs.build-and-push.outputs.shortsha }}"
+          base: kubernetes-test-helm
+          branch: "ci/update-image-tags-${{ needs.build-jars.outputs.shortsha }}"
+          title: "Update images to ${{ needs.build-jars.outputs.tag }}"
+          commit-message: "Update Helm image tags to ${{ needs.build-jars.outputs.tag }}"
           body: |
             This PR updates Helm values to point services to images tagged with:
-            sha-${{ needs.build-and-push.outputs.shortsha }}
+            ${{ needs.build-jars.outputs.tag }}
           labels: |
             automated
