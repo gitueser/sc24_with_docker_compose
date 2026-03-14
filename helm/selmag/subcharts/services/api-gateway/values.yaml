@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/gitueser/selmag/api-gateway
-  tag: "sha-11c9212"
+  tag: "sha-d199615"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
