@@ -1296,18 +1296,6 @@ spring.cloud.config.server.git.refreshRate=30
     - global filters
 
 ---
-
-# Разное
-
-```text
-172.21.106.163
-```
-
-```yaml
-nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
-nginx.ingress.kubernetes.io/x-forwarded-prefix: "/"
-```
-
 ## Туннелирование
 
 ```bash
