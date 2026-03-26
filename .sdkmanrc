@@ -1,0 +1,21 @@
+# This file is used to declare the required JDK version for this project.
+# It is compatible with SDKMAN and is also recognized by IntelliJ IDEA.
+# How to use:
+# - Uncomment the desired Java version below.
+# - On UNIX-based systems (Linux/macOS), SDKMAN can automatically install
+# and switch to the specified JDK version via `sdk env install` / `sdk env`.
+
+# - IntelliJ IDEA may also detect this file and suggest configuring or downloading the JDK.
+
+# Important notes:
+# - This file is intended to ensure all developers use the same JDK version.
+# - Automatic setup works best on UNIX-like environments where SDKMAN is fully supported.
+# - On Windows, behavior may be inconsistent (especially outside WSL),
+# and automatic JDK installation/configuration in IntelliJ IDEA may not work as expected.
+# - In such cases, install the required JDK manually and configure it in IDE settings.
+
+# Example versions (uncomment one when needed):
+
+# java=25-oracle
+# java=26-open
+# java=17.0.18-tem
